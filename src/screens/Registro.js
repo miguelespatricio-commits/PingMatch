@@ -1,0 +1,179 @@
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
+
+export default function Registro({ navigation }) {
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [categoria, setCategoria] = useState('');
+  const [barrio, setBarrio] = useState('');
+  const [cargando, setCargando] = useState(false);
+
+  const categorias = [
+    'Élite', '1ª División', '2ª División', '3ª División',
+    '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'
+  ];
+
+  const registrar = async () => {
+    if (!nombre || !apellido || !email || !password || !categoria || !barrio) {
+      Alert.alert('Error', 'Por favor completá todos los campos');
+      return;
+    }
+    try {
+      setCargando(true);
+      const credencial = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'usuarios', credencial.user.uid), {
+        nombre,
+        apellido,
+        email,
+        categoria,
+        barrio,
+        puntos: 1500,
+        role: 'jugador',
+        estado: categoria === 'Élite' ? 'pendiente' : 'activo',
+        creadoEn: new Date(),
+      });
+      Alert.alert('¡Bienvenido!', `Hola ${nombre}, tu cuenta fue creada exitosamente.`);
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.titulo}>Crear cuenta</Text>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>Nombre</Text>
+        <TextInput style={styles.input} placeholder="Tu nombre" value={nombre} onChangeText={setNombre} />
+      </View>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>Apellido</Text>
+        <TextInput style={styles.input} placeholder="Tu apellido" value={apellido} onChangeText={setApellido} />
+      </View>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>Email</Text>
+        <TextInput style={styles.input} placeholder="tu@email.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+      </View>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>Contraseña</Text>
+        <TextInput style={styles.input} placeholder="Mínimo 6 caracteres" value={password} onChangeText={setPassword} secureTextEntry />
+      </View>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>Barrio</Text>
+        <TextInput style={styles.input} placeholder="Tu barrio" value={barrio} onChangeText={setBarrio} />
+      </View>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>Categoría</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {categorias.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.categoriaBtn, categoria === cat && styles.categoriaBtnActivo]}
+              onPress={() => setCategoria(cat)}
+            >
+              <Text style={[styles.categoriaBtnTexto, categoria === cat && styles.categoriaBtnTextoActivo]}>
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {categoria === 'Élite' && (
+        <View style={styles.avisoElite}>
+          <Text style={styles.avisoEliteTexto}>
+            ⚠️ La categoría Élite requiere aval de un club. Tu cuenta quedará pendiente hasta ser aprobada.
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity style={styles.boton} onPress={registrar} disabled={cargando}>
+        <Text style={styles.botonTexto}>{cargando ? 'Creando cuenta...' : 'Registrarme'}</Text>
+      </TouchableOpacity>
+
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    backgroundColor: '#fff',
+    padding: 24,
+    paddingTop: 60,
+  },
+  titulo: {
+    fontSize: 24,
+    fontWeight: '500',
+    color: '#1D9E75',
+    marginBottom: 24,
+  },
+  campo: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: '#F7F7F5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+  },
+  categoriaBtn: {
+    backgroundColor: '#F7F7F5',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginRight: 8,
+  },
+  categoriaBtnActivo: {
+    backgroundColor: '#1D9E75',
+  },
+  categoriaBtnTexto: {
+    fontSize: 12,
+    color: '#666',
+  },
+  categoriaBtnTextoActivo: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  avisoElite: {
+    backgroundColor: '#FAEEDA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  avisoEliteTexto: {
+    fontSize: 12,
+    color: '#633806',
+    lineHeight: 18,
+  },
+  boton: {
+    backgroundColor: '#1D9E75',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  botonTexto: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+});
