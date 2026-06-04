@@ -1,20 +1,51 @@
+import * as Linking from 'expo-linking';
+import { collection, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../config/firebase';
 
 export default function Partidos({ navigation }) {
   const [partidos, setPartidos] = useState([]);
+  const [miCategoria, setMiCategoria] = useState('');
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'partidos'), (snapshot) => {
-      const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPartidos(lista);
-    });
-    return unsub;
+    const cargarPerfil = async () => {
+      if (auth.currentUser) {
+        const snap = await getDoc(doc(db, 'usuarios', auth.currentUser.uid));
+        if (snap.exists()) {
+          setMiCategoria(snap.data().categoria);
+        }
+      }
+    };
+    cargarPerfil();
   }, []);
 
+  useEffect(() => {
+    const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
+    const unsub = onSnapshot(collection(db, 'partidos'), (snapshot) => {
+      const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const listaFiltrada = lista.filter(partido => {
+        if (!partido.filtro_categoria) return true;
+        if (partido.filtro_categoria === 'Cualquiera') return true;
+        if (partido.filtro_categoria === 'Solo mi categoría') return partido.categoria === miCategoria;
+        if (partido.filtro_categoria === 'Mi categoría o superior') {
+          const indexMio = categorias.indexOf(miCategoria);
+          const indexPartido = categorias.indexOf(partido.categoria);
+          return indexPartido <= indexMio;
+        }
+        return true;
+      });
+      setPartidos(listaFiltrada);
+    });
+    return unsub;
+  }, [miCategoria]);
+
   const unirse = async (partido) => {
+    if (!auth.currentUser) {
+      Alert.alert('Error', 'Tu sesión expiró. Por favor volvé a iniciar sesión.');
+      navigation.navigate('Login');
+      return;
+    }
     if (partido.estado !== 'abierta') {
       Alert.alert('Mesa cerrada', 'Este partido ya tiene los jugadores necesarios.');
       return;
@@ -24,7 +55,6 @@ export default function Partidos({ navigation }) {
       return;
     }
     try {
-      const { updateDoc, doc } = await import('firebase/firestore');
       await updateDoc(doc(db, 'partidos', partido.id), {
         rival: auth.currentUser.uid,
         rival_nombre: auth.currentUser.email,
@@ -34,6 +64,14 @@ export default function Partidos({ navigation }) {
     } catch (error) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const contactarWhatsApp = (numero, nombre) => {
+    const mensaje = encodeURIComponent(`Hola ${nombre}, te escribo por el partido que armamos en PingMatch.`);
+    const url = `whatsapp://send?phone=54${numero}&text=${mensaje}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Error', 'No se pudo abrir WhatsApp. Verificá que esté instalado.');
+    });
   };
 
   return (
@@ -57,18 +95,36 @@ export default function Partidos({ navigation }) {
             <Text style={styles.cardDetalle}>📅 {partido.fecha} · {partido.hora}</Text>
             <Text style={styles.cardDetalle}>📍 {partido.lugar}</Text>
             <Text style={styles.cardDetalle}>🏓 {partido.categoria} · {partido.modalidad}</Text>
+            {partido.tipo && (
+              <Text style={styles.cardDetalle}>
+                {partido.tipo === 'Ranking' ? '🏆 Por ranking' : '🤝 Amistoso'}
+              </Text>
+            )}
             {partido.estado === 'abierta' && partido.convocante !== auth.currentUser?.uid && (
-  <TouchableOpacity style={styles.btnUnirse} onPress={() => unirse(partido)}>
-    <Text style={styles.btnUnirseTexto}>¡Me uno!</Text>
-  </TouchableOpacity>
-)}
-{partido.estado === 'cerrada' &&
-  (partido.convocante === auth.currentUser?.uid || partido.rival === auth.currentUser?.uid) &&
-  !partido.resultado_pendiente && (
-  <TouchableOpacity style={styles.btnResultado} onPress={() => navigation.navigate('Resultado', { partido })}>
-    <Text style={styles.btnResultadoTexto}>Cargar resultado</Text>
-  </TouchableOpacity>
-)}
+              <TouchableOpacity style={styles.btnUnirse} onPress={() => unirse(partido)}>
+                <Text style={styles.btnUnirseTexto}>¡Me uno!</Text>
+              </TouchableOpacity>
+            )}
+            {partido.estado === 'cerrada' &&
+              (partido.convocante === auth.currentUser?.uid || partido.rival === auth.currentUser?.uid) &&
+              !partido.resultado_pendiente && (
+              <View>
+                <TouchableOpacity style={styles.btnResultado} onPress={() => navigation.navigate('Resultado', { partido })}>
+                  <Text style={styles.btnResultadoTexto}>Cargar resultado</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.btnWhatsapp}
+                  onPress={() => {
+                    const esConvocante = auth.currentUser?.uid === partido.convocante;
+                    const numeroContacto = esConvocante ? partido.rival_celular : partido.convocante_celular;
+                    const nombreContacto = esConvocante ? partido.rival_nombre : partido.convocante_nombre;
+                    contactarWhatsApp(numeroContacto, nombreContacto);
+                  }}
+                >
+                  <Text style={styles.btnWhatsappTexto}>💬 Contactar por WhatsApp</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -170,15 +226,27 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   btnResultado: {
-  backgroundColor: '#FAEEDA',
-  borderRadius: 8,
-  paddingVertical: 8,
-  alignItems: 'center',
-  marginTop: 8,
-},
-btnResultadoTexto: {
-  color: '#633806',
-  fontSize: 13,
-  fontWeight: '500',
-},
+    backgroundColor: '#FAEEDA',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  btnResultadoTexto: {
+    color: '#633806',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  btnWhatsapp: {
+    backgroundColor: '#25D366',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  btnWhatsappTexto: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
 });

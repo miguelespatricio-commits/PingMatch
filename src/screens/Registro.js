@@ -12,7 +12,8 @@ export default function Registro({ navigation }) {
   const [categoria, setCategoria] = useState('');
   const [barrio, setBarrio] = useState('');
   const [cargando, setCargando] = useState(false);
-
+  const [celular, setCelular] = useState('');
+  
   const categorias = [
     'Élite', '1ª División', '2ª División', '3ª División',
     '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'
@@ -30,6 +31,7 @@ export default function Registro({ navigation }) {
         nombre,
         apellido,
         email,
+        celular,
         categoria,
         barrio,
         puntos: 1500,
@@ -37,7 +39,9 @@ export default function Registro({ navigation }) {
         estado: categoria === 'Élite' ? 'pendiente' : 'activo',
         creadoEn: new Date(),
       });
-      Alert.alert('¡Bienvenido!', `Hola ${nombre}, tu cuenta fue creada exitosamente.`);
+      Alert.alert('¡Bienvenid@!', `Hola ${nombre}, tu cuenta fue creada exitosamente.`, [
+  { text: 'Entrar', onPress: () => navigation.navigate('Partidos') }
+]);
     } catch (error) {
       Alert.alert('Error', error.message);
     } finally {
@@ -70,9 +74,14 @@ export default function Registro({ navigation }) {
       </View>
 
       <View style={styles.campo}>
-        <Text style={styles.label}>Barrio</Text>
-        <TextInput style={styles.input} placeholder="Tu barrio" value={barrio} onChangeText={setBarrio} />
-      </View>
+  <Text style={styles.label}>Barrio</Text>
+  <TextInput style={styles.input} placeholder="Tu barrio" value={barrio} onChangeText={setBarrio} />
+</View>
+
+      <View style={styles.campo}>
+  <Text style={styles.label}>Número de celular (para contacto vía WhatsApp)</Text>
+  <TextInput style={styles.input} placeholder="Ej: 1123456789" value={celular} onChangeText={setCelular} keyboardType="numeric" />
+</View>
 
       <View style={styles.campo}>
         <Text style={styles.label}>Categoría</Text>

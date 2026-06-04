@@ -1,36 +1,63 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { addDoc, collection } from 'firebase/firestore';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../config/firebase';
 
 export default function NuevoPartido({ navigation }) {
-  const [fecha, setFecha] = useState('');
-  const [hora, setHora] = useState('');
+  const [fecha, setFecha] = useState(new Date());
+  const [hora, setHora] = useState(new Date());
+  const [mostrarFecha, setMostrarFecha] = useState(false);
+  const [mostrarHora, setMostrarHora] = useState(false);
   const [lugar, setLugar] = useState('');
   const [categoria, setCategoria] = useState('');
   const [modalidad, setModalidad] = useState('Singles');
+  const [tipo, setTipo] = useState('Ranking');
+  const [filtroCat, setFiltroCat] = useState('Solo mi categoría');
   const [cargando, setCargando] = useState(false);
 
-  const categorias = [
-    'Élite', '1ª División', '2ª División', '3ª División',
-    '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'
-  ];
+  const hoy = new Date();
+
+  useEffect(() => {
+    const cargarCategoria = async () => {
+      if (auth.currentUser) {
+        const snap = await getDoc(doc(db, 'usuarios', auth.currentUser.uid));
+        if (snap.exists()) {
+          setCategoria(snap.data().categoria);
+        }
+      }
+    };
+    cargarCategoria();
+  }, []);
+
+  const formatFecha = (date) => {
+    return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  const formatHora = (date) => {
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  };
 
   const convocar = async () => {
-    if (!fecha || !hora || !lugar || !categoria) {
-      Alert.alert('Error', 'Por favor completá todos los campos');
+    if (!lugar) {
+      Alert.alert('Error', 'Por favor ingresá el lugar del partido');
       return;
     }
     try {
       setCargando(true);
+      const snap = await getDoc(doc(db, 'usuarios', auth.currentUser.uid));
+      const perfil = snap.data();
       await addDoc(collection(db, 'partidos'), {
-        fecha,
-        hora,
+        fecha: formatFecha(fecha),
+        hora: formatHora(hora),
         lugar,
         categoria,
         modalidad,
+        tipo,
+        filtro_categoria: filtroCat,
         convocante: auth.currentUser.uid,
-        convocante_nombre: auth.currentUser.email,
+        convocante_nombre: perfil.nombre + ' ' + perfil.apellido,
+        convocante_celular: perfil.celular || '',
         estado: 'abierta',
         creadoEn: new Date(),
       });
@@ -51,6 +78,12 @@ export default function NuevoPartido({ navigation }) {
 
       <Text style={styles.titulo}>Nuevo partido</Text>
 
+      {categoria ? (
+        <View style={styles.categoriaInfo}>
+          <Text style={styles.categoriaInfoTexto}>📊 Tu categoría: {categoria}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.campo}>
         <Text style={styles.label}>Modalidad</Text>
         <View style={styles.toggleRow}>
@@ -69,30 +102,73 @@ export default function NuevoPartido({ navigation }) {
       </View>
 
       <View style={styles.campo}>
-        <Text style={styles.label}>Categoría</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categorias.map((cat) => (
+        <Text style={styles.label}>Tipo de partido</Text>
+        <View style={styles.toggleRow}>
+          {['Ranking', 'Amistoso'].map((t) => (
             <TouchableOpacity
-              key={cat}
-              style={[styles.categoriaBtn, categoria === cat && styles.categoriaBtnActivo]}
-              onPress={() => setCategoria(cat)}
+              key={t}
+              style={[styles.toggleBtn, tipo === t && styles.toggleBtnActivo]}
+              onPress={() => setTipo(t)}
             >
-              <Text style={[styles.categoriaBtnTexto, categoria === cat && styles.categoriaBtnTextoActivo]}>
-                {cat}
+              <Text style={[styles.toggleTexto, tipo === t && styles.toggleTextoActivo]}>
+                {t}
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
+      </View>
+
+      <View style={styles.campo}>
+        <Text style={styles.label}>¿Quién puede unirse?</Text>
+        <View style={styles.filtroRow}>
+          {['Solo mi categoría', 'Mi categoría o superior', 'Cualquiera'].map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filtroBtn, filtroCat === f && styles.filtroBtnActivo]}
+              onPress={() => setFiltroCat(f)}
+            >
+              <Text style={[styles.filtroTexto, filtroCat === f && styles.filtroTextoActivo]}>
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <View style={styles.campo}>
         <Text style={styles.label}>Fecha</Text>
-        <TextInput style={styles.input} placeholder="Ej: Sáb 7 jun" value={fecha} onChangeText={setFecha} />
+        <TouchableOpacity style={styles.dateBtn} onPress={() => setMostrarFecha(true)}>
+          <Text style={styles.dateBtnTexto}>📅 {formatFecha(fecha)}</Text>
+        </TouchableOpacity>
+        {mostrarFecha && (
+          <DateTimePicker
+            value={fecha}
+            mode="date"
+            minimumDate={hoy}
+            onChange={(event, selectedDate) => {
+              setMostrarFecha(Platform.OS === 'ios');
+              if (selectedDate) setFecha(selectedDate);
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.campo}>
         <Text style={styles.label}>Hora</Text>
-        <TextInput style={styles.input} placeholder="Ej: 18:00" value={hora} onChangeText={setHora} />
+        <TouchableOpacity style={styles.dateBtn} onPress={() => setMostrarHora(true)}>
+          <Text style={styles.dateBtnTexto}>🕐 {formatHora(hora)}</Text>
+        </TouchableOpacity>
+        {mostrarHora && (
+          <DateTimePicker
+            value={hora}
+            mode="time"
+            is24Hour={true}
+            onChange={(event, selectedTime) => {
+              setMostrarHora(Platform.OS === 'ios');
+              if (selectedTime) setHora(selectedTime);
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.campo}>
@@ -132,7 +208,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '500',
     color: '#1D9E75',
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  categoriaInfo: {
+    backgroundColor: '#E1F5EE',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+  },
+  categoriaInfoTexto: {
+    fontSize: 13,
+    color: '#085041',
+    fontWeight: '500',
   },
   campo: {
     marginBottom: 16,
@@ -146,6 +233,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F7F5',
     borderRadius: 8,
     padding: 12,
+    fontSize: 14,
+    color: '#333',
+  },
+  dateBtn: {
+    backgroundColor: '#F7F7F5',
+    borderRadius: 8,
+    padding: 12,
+  },
+  dateBtnTexto: {
     fontSize: 14,
     color: '#333',
   },
@@ -171,21 +267,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
   },
-  categoriaBtn: {
-    backgroundColor: '#F7F7F5',
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    marginRight: 8,
+  filtroRow: {
+    flexDirection: 'row',
+    gap: 6,
   },
-  categoriaBtnActivo: {
+  filtroBtn: {
+    flex: 1,
+    backgroundColor: '#F7F7F5',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  filtroBtnActivo: {
     backgroundColor: '#1D9E75',
   },
-  categoriaBtnTexto: {
-    fontSize: 12,
+  filtroTexto: {
+    fontSize: 11,
     color: '#666',
+    textAlign: 'center',
   },
-  categoriaBtnTextoActivo: {
+  filtroTextoActivo: {
     color: '#fff',
     fontWeight: '500',
   },
