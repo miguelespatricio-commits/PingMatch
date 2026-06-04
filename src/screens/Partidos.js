@@ -105,26 +105,56 @@ export default function Partidos({ navigation }) {
                 <Text style={styles.btnUnirseTexto}>¡Me uno!</Text>
               </TouchableOpacity>
             )}
-            {partido.estado === 'cerrada' &&
-              (partido.convocante === auth.currentUser?.uid || partido.rival === auth.currentUser?.uid) &&
-              !partido.resultado_pendiente && (
-              <View>
-                <TouchableOpacity style={styles.btnResultado} onPress={() => navigation.navigate('Resultado', { partido })}>
-                  <Text style={styles.btnResultadoTexto}>Cargar resultado</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnWhatsapp}
-                  onPress={() => {
-                    const esConvocante = auth.currentUser?.uid === partido.convocante;
-                    const numeroContacto = esConvocante ? partido.rival_celular : partido.convocante_celular;
-                    const nombreContacto = esConvocante ? partido.rival_nombre : partido.convocante_nombre;
-                    contactarWhatsApp(numeroContacto, nombreContacto);
-                  }}
-                >
-                  <Text style={styles.btnWhatsappTexto}>💬 Contactar por WhatsApp</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+  {partido.estado === 'cerrada' &&
+  (partido.convocante === auth.currentUser?.uid || partido.rival === auth.currentUser?.uid) &&
+  !partido.resultado_pendiente && (
+  <View>
+  {partido.tipo !== 'Amistoso' && (
+  <TouchableOpacity style={styles.btnResultado} onPress={() => navigation.navigate('Resultado', { partido })}>
+    <Text style={styles.btnResultadoTexto}>Cargar resultado</Text>
+  </TouchableOpacity>
+)}
+    <TouchableOpacity
+      style={styles.btnWhatsapp}
+      onPress={() => {
+        const esConvocante = auth.currentUser?.uid === partido.convocante;
+        const numeroContacto = esConvocante ? partido.rival_celular : partido.convocante_celular;
+        const nombreContacto = esConvocante ? partido.rival_nombre : partido.convocante_nombre;
+        contactarWhatsApp(numeroContacto, nombreContacto);
+      }}
+    >
+      <Text style={styles.btnWhatsappTexto}>💬 Contactar por WhatsApp</Text>
+    </TouchableOpacity>
+    {partido.rival === auth.currentUser?.uid && (
+      <TouchableOpacity
+        style={styles.btnSalir}
+        onPress={() => {
+          Alert.alert(
+            'Salir de la mesa',
+            '¿Confirmás que querés salir? La mesa volverá a quedar abierta.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Salir',
+                style: 'destructive',
+                onPress: async () => {
+                  await updateDoc(doc(db, 'partidos', partido.id), {
+                    rival: null,
+                    rival_nombre: null,
+                    rival_celular: null,
+                    estado: 'abierta',
+                  });
+                },
+              },
+            ]
+          );
+        }}
+      >
+        <Text style={styles.btnSalirTexto}>Salir de la mesa</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+)}
           </View>
         ))}
       </ScrollView>
@@ -249,4 +279,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
+  btnSalir: {
+  backgroundColor: '#FCEBEB',
+  borderRadius: 8,
+  paddingVertical: 8,
+  alignItems: 'center',
+  marginTop: 6,
+},
+btnSalirTexto: {
+  color: '#A32D2D',
+  fontSize: 13,
+  fontWeight: '500',
+},
 });
