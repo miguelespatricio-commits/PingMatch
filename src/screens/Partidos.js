@@ -55,6 +55,20 @@ export default function Partidos({ navigation }) {
       Alert.alert('Error', 'No podés unirte a tu propio partido.');
       return;
     }
+    if (partido.filtro_categoria && partido.filtro_categoria !== 'Cualquiera') {
+  const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
+  const indexMio = categorias.indexOf(miCategoria);
+  const indexPartido = categorias.indexOf(partido.categoria);
+  
+  if (partido.filtro_categoria === 'Solo mi categoría' && partido.categoria !== miCategoria) {
+    Alert.alert('No podés unirte', 'Esta mesa es solo para jugadores de ' + partido.categoria);
+    return;
+  }
+  if (partido.filtro_categoria === 'Mi categoría o superior' && indexMio > indexPartido) {
+    Alert.alert('No podés unirte', 'Esta mesa es para jugadores de ' + partido.categoria + ' o superior.');
+    return;
+  }
+}
     try {
       await updateDoc(doc(db, 'partidos', partido.id), {
         rival: auth.currentUser.uid,
@@ -116,7 +130,7 @@ export default function Partidos({ navigation }) {
             )}
   {partido.estado === 'cerrada' &&
   (partido.convocante === auth.currentUser?.uid || partido.rival === auth.currentUser?.uid) &&
-  !partido.resultado_pendiente && (
+  (partido.resultado_pendiente || !partido.resultado_pendiente) && (
   <View>
   {partido.tipo !== 'Amistoso' && (
   <TouchableOpacity style={styles.btnResultado} onPress={() => navigation.navigate('Resultado', { partido })}>
