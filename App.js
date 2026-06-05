@@ -6,6 +6,7 @@ import Login from './src/screens/Login';
 import Partidos from './src/screens/Partidos';
 import NuevoPartido from './src/screens/NuevoPartido';
 import Resultado from './src/screens/Resultado';
+import Perfil from './src/screens/Perfil';
 
 const Stack = createStackNavigator();
 
@@ -19,6 +20,7 @@ export default function App() {
         <Stack.Screen name="Partidos" component={Partidos} />
         <Stack.Screen name="NuevoPartido" component={NuevoPartido} />
         <Stack.Screen name="Resultado" component={Resultado} />
+        <Stack.Screen name="Perfil" component={Perfil} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -24,7 +24,8 @@ export default function Partidos({ navigation }) {
     const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
     const unsub = onSnapshot(collection(db, 'partidos'), (snapshot) => {
       const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const listaFiltrada = lista.filter(partido => {
+      const sinTerminados = lista.filter(partido => !partido.resultado_confirmado);
+      const listaFiltrada = sinTerminados.filter(partido => {
         if (!partido.filtro_categoria) return true;
         if (partido.filtro_categoria === 'Cualquiera') return true;
         if (partido.filtro_categoria === 'Solo mi categoría') return partido.categoria === miCategoria;
@@ -76,7 +77,15 @@ export default function Partidos({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>Mesas disponibles</Text>
+      <View style={styles.tituloRow}>
+  <Text style={styles.titulo}>Mesas disponibles</Text>
+  <TouchableOpacity onPress={() => {
+  console.log('Navegando a Perfil...');
+  navigation.navigate('Perfil');
+}}>
+    <Text style={styles.perfilBtn}>👤 Perfil</Text>
+  </TouchableOpacity>
+</View>
 
       <ScrollView style={styles.lista}>
         {partidos.length === 0 && (
@@ -177,7 +186,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '500',
     color: '#1D9E75',
-    marginBottom: 20,
   },
   lista: {
     flex: 1,
@@ -289,6 +297,17 @@ const styles = StyleSheet.create({
 btnSalirTexto: {
   color: '#A32D2D',
   fontSize: 13,
+  fontWeight: '500',
+},
+tituloRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 20,
+},
+perfilBtn: {
+  fontSize: 14,
+  color: '#1D9E75',
   fontWeight: '500',
 },
 });
