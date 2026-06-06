@@ -26,16 +26,12 @@ export default function Partidos({ navigation }) {
       const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const sinTerminados = lista.filter(partido => !partido.resultado_confirmado);
       const listaFiltrada = sinTerminados.filter(partido => {
-        if (!partido.filtro_categoria) return true;
-        if (partido.filtro_categoria === 'Cualquiera') return true;
-        if (partido.filtro_categoria === 'Solo mi categoría') return partido.categoria === miCategoria;
-        if (partido.filtro_categoria === 'Mi categoría o superior') {
-          const indexMio = categorias.indexOf(miCategoria);
-          const indexPartido = categorias.indexOf(partido.categoria);
-          return indexPartido <= indexMio;
-        }
-        return true;
-      });
+  if (!partido.filtro_categoria) return true;
+  if (partido.filtro_categoria === 'Cualquiera') return true;
+  if (partido.filtro_categoria === 'Solo mi categoría') return partido.categoria === miCategoria;
+  if (partido.filtro_categoria === 'Mi categoría o superior') return true;
+  return true;
+});
       setPartidos(listaFiltrada);
     });
     return unsub;
@@ -108,22 +104,34 @@ export default function Partidos({ navigation }) {
         {partidos.map((partido) => (
           <View key={partido.id} style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitulo}>{partido.convocante_nombre} convoca</Text>
-              <View style={[styles.badge, partido.estado === 'abierta' ? styles.badgeAbierta : styles.badgeCerrada]}>
-                <Text style={[styles.badgeTexto, partido.estado === 'abierta' ? styles.badgeTextoAbierta : styles.badgeTextoCerrada]}>
-                  {partido.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
-                </Text>
-              </View>
-            </View>
+  <Text style={styles.cardTitulo}>{partido.convocante_nombre} convoca</Text>
+  <View style={styles.badgesRow}>
+    {partido.filtro_categoria && (
+      <View style={styles.badgeFiltro}>
+        <Text style={styles.badgeFiltroTexto}>
+          {partido.filtro_categoria === 'Solo mi categoría' ? '🔒 ' + partido.categoria :
+           partido.filtro_categoria === 'Mi categoría o superior' ? '📈 ' + partido.categoria + '+' :
+           '🌐 Todos'}
+        </Text>
+      </View>
+    )}
+    <View style={[styles.badge, partido.estado === 'abierta' ? styles.badgeAbierta : styles.badgeCerrada]}>
+      <Text style={[styles.badgeTexto, partido.estado === 'abierta' ? styles.badgeTextoAbierta : styles.badgeTextoCerrada]}>
+        {partido.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
+      </Text>
+    </View>
+  </View>
+</View>
             <Text style={styles.cardDetalle}>📅 {partido.fecha} · {partido.hora}</Text>
             <Text style={styles.cardDetalle}>📍 {partido.lugar}</Text>
             <Text style={styles.cardDetalle}>🏓 {partido.categoria} · {partido.modalidad}</Text>
             {partido.tipo && (
-              <Text style={styles.cardDetalle}>
-                {partido.tipo === 'Ranking' ? '🏆 Por ranking' : '🤝 Amistoso'}
-              </Text>
-            )}
-            {partido.estado === 'abierta' && partido.convocante !== auth.currentUser?.uid && (
+  <Text style={styles.cardDetalle}>
+    {partido.tipo === 'Ranking' ? '🏆 Por ranking' : '🤝 Amistoso'}
+  </Text>
+)}
+
+        {partido.estado === 'abierta' && partido.convocante !== auth.currentUser?.uid && (
               <TouchableOpacity style={styles.btnUnirse} onPress={() => unirse(partido)}>
                 <Text style={styles.btnUnirseTexto}>¡Me uno!</Text>
               </TouchableOpacity>
@@ -322,6 +330,22 @@ tituloRow: {
 perfilBtn: {
   fontSize: 14,
   color: '#1D9E75',
+  fontWeight: '500',
+},
+badgesRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+},
+badgeFiltro: {
+  backgroundColor: '#E6F1FB',
+  borderRadius: 99,
+  paddingVertical: 2,
+  paddingHorizontal: 8,
+},
+badgeFiltroTexto: {
+  fontSize: 10,
+  color: '#0C447C',
   fontWeight: '500',
 },
 });
