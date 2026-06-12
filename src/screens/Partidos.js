@@ -145,6 +145,33 @@ export default function Partidos({ navigation }) {
     <Text style={styles.btnResultadoTexto}>Cargar resultado</Text>
   </TouchableOpacity>
 )}
+   {partido.tipo === 'Amistoso' && (
+  <View>
+    <TouchableOpacity style={styles.btnResultado} onPress={() => navigation.navigate('Resultado', { partido })}>
+      <Text style={styles.btnResultadoTexto}>Anotar resultado (opcional)</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.btnCerrar} onPress={() => {
+      Alert.alert(
+        'Cerrar partido',
+        '¿Confirmás que el partido amistoso ya se jugó?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Cerrar',
+            onPress: async () => {
+              await updateDoc(doc(db, 'partidos', partido.id), {
+                resultado_confirmado: true,
+                resultado_pendiente: false,
+              });
+            }
+          }
+        ]
+      );
+    }}>
+      <Text style={styles.btnCerrarTexto}>Dar partido por jugado</Text>
+    </TouchableOpacity>
+  </View>
+)}
     <TouchableOpacity
       style={styles.btnWhatsapp}
       onPress={() => {
@@ -346,6 +373,18 @@ badgeFiltro: {
 badgeFiltroTexto: {
   fontSize: 10,
   color: '#0C447C',
+  fontWeight: '500',
+},
+btnCerrar: {
+  backgroundColor: '#EEEDFE',
+  borderRadius: 8,
+  paddingVertical: 8,
+  alignItems: 'center',
+  marginTop: 6,
+},
+btnCerrarTexto: {
+  color: '#3C3489',
+  fontSize: 13,
   fontWeight: '500',
 },
 });
