@@ -1,14 +1,17 @@
 import { doc, updateDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../config/firebase';
 
 export default function Resultado({ navigation, route }) {
   const { partido: partidoInicial } = route.params;
   const [partido, setPartido] = useState(partidoInicial);
-  const [sets_convocante, setSetsConvocante] = useState('');
-  const [sets_rival, setSetsRival] = useState('');
+  const [sets, setSets] = useState([]);
   const [cargando, setCargando] = useState(false);
+
+  const totalSets = partido.formato === 'Mejor de 3' ? 3 :
+                    partido.formato === 'Mejor de 7' ? 7 : 5;
+  const setsParaGanar = Math.ceil(totalSets / 2);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'partidos', partidoInicial.id), (snap) => {
@@ -17,24 +20,64 @@ export default function Resultado({ navigation, route }) {
     return unsub;
   }, []);
 
-  const esConvocante = auth.currentUser.uid === partido.convocante;
+  useEffect(() => {
+    setSets(Array.from({ length: totalSets }, () => ({
+      convocante: '',
+      rival: '',
+    })));
+  }, [totalSets]);
+
   const yaCargo = partido.resultado_pendiente;
   const puedoConfirmar = yaCargo && partido.resultado_cargado_por !== auth.currentUser.uid;
 
+  const calcularGanadorSet = (puntosA, puntosB) => {
+    const a = parseInt(puntosA) || 0;
+    const b = parseInt(puntosB) || 0;
+    if (a >= 11 && a - b >= 2) return 'convocante';
+    if (b >= 11 && b - a >= 2) return 'rival';
+    return null;
+  };
+
+  const setsGanadosConvocante = sets.filter(s => calcularGanadorSet(s.convocante, s.rival) === 'convocante').length;
+  const setsGanadosRival = sets.filter(s => calcularGanadorSet(s.convocante, s.rival) === 'rival').length;
+
+  const actualizarSet = (index, jugador, valor) => {
+    const nuevos = [...sets];
+    nuevos[index] = { ...nuevos[index], [jugador]: valor };
+
+    let ganConvocante = 0;
+    let ganRival = 0;
+    const recalculados = nuevos.map((s) => {
+      if (ganConvocante >= setsParaGanar || ganRival >= setsParaGanar) {
+        return { convocante: '-', rival: '-' };
+      }
+      const g = calcularGanadorSet(
+        s.convocante === '-' ? '' : s.convocante,
+        s.rival === '-' ? '' : s.rival
+      );
+      if (g === 'convocante') ganConvocante++;
+      if (g === 'rival') ganRival++;
+      return {
+        convocante: s.convocante === '-' ? '' : s.convocante,
+        rival: s.rival === '-' ? '' : s.rival
+      };
+    });
+
+    setSets(recalculados);
+  };
+
   const cargarResultado = async () => {
-    if (!sets_convocante || !sets_rival) {
-      Alert.alert('Error', 'Completá el resultado');
+    if (setsGanadosConvocante < setsParaGanar && setsGanadosRival < setsParaGanar) {
+      Alert.alert('Error', `Se necesitan ${setsParaGanar} sets para ganar.`);
       return;
     }
     try {
       setCargando(true);
-      const ganador = parseInt(sets_convocante) > parseInt(sets_rival)
-        ? partido.convocante
-        : partido.rival;
-
+      const ganador = setsGanadosConvocante >= setsParaGanar ? partido.convocante : partido.rival;
       await updateDoc(doc(db, 'partidos', partido.id), {
-        sets_convocante: parseInt(sets_convocante),
-        sets_rival: parseInt(sets_rival),
+        sets,
+        sets_convocante: setsGanadosConvocante,
+        sets_rival: setsGanadosRival,
         ganador,
         resultado_pendiente: true,
         resultado_cargado_por: auth.currentUser.uid,
@@ -51,7 +94,6 @@ export default function Resultado({ navigation, route }) {
   const confirmarResultado = async () => {
     try {
       setCargando(true);
-
       const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
       const snapGanador = await getDoc(doc(db, 'usuarios', partido.ganador));
       const perdedorId = partido.ganador === partido.convocante ? partido.rival : partido.convocante;
@@ -77,17 +119,15 @@ export default function Resultado({ navigation, route }) {
       await updateDoc(doc(db, 'usuarios', partido.ganador), {
         puntos: (datosGanador.puntos || 1500) + puntosGanador,
       });
-
       await updateDoc(doc(db, 'usuarios', perdedorId), {
         puntos: (datosPerdedor.puntos || 1500) + puntosPerdedor,
       });
-
       await updateDoc(doc(db, 'partidos', partido.id), {
         resultado_confirmado: true,
         resultado_pendiente: false,
       });
 
-      Alert.alert('¡Confirmado!', `Resultado registrado. +${puntosGanador} pts al ganador, +${puntosPerdedor} pts al perdedor.`);
+      Alert.alert('¡Confirmado!', `+${puntosGanador} pts al ganador · +${puntosPerdedor} pts al perdedor.`);
       navigation.navigate('Partidos');
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -97,7 +137,7 @@ export default function Resultado({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <TouchableOpacity onPress={() => navigation.goBack()}>
         <Text style={styles.volver}>← Volver</Text>
       </TouchableOpacity>
@@ -106,48 +146,39 @@ export default function Resultado({ navigation, route }) {
         {puedoConfirmar ? 'Confirmar resultado' : 'Cargar resultado'}
       </Text>
 
-      <View style={styles.card}>
-        <View style={styles.jugadorRow}>
-          <Text style={styles.jugadorNombre}>{partido.convocante_nombre}</Text>
-          {puedoConfirmar ? (
-            <Text style={styles.scoreTexto}>{partido.sets_convocante}</Text>
-          ) : (
-            <TextInput
-              style={styles.scoreInput}
-              placeholder="0"
-              value={sets_convocante}
-              onChangeText={setSetsConvocante}
-              keyboardType="numeric"
-              maxLength={1}
-            />
-          )}
-        </View>
+      <View style={styles.formatoBadge}>
+        <Text style={styles.formatoTexto}>{partido.formato || 'Mejor de 5'}</Text>
+      </View>
 
+      <View style={styles.nombresRow}>
+        <Text style={styles.nombreJugador}>{partido.convocante_nombre}</Text>
         <Text style={styles.vs}>vs</Text>
-
-        <View style={styles.jugadorRow}>
-          <Text style={styles.jugadorNombre}>{partido.rival_nombre}</Text>
-          {puedoConfirmar ? (
-            <Text style={styles.scoreTexto}>{partido.sets_rival}</Text>
-          ) : (
-            <TextInput
-              style={styles.scoreInput}
-              placeholder="0"
-              value={sets_rival}
-              onChangeText={setSetsRival}
-              keyboardType="numeric"
-              maxLength={1}
-            />
-          )}
-        </View>
+        <Text style={styles.nombreJugador}>{partido.rival_nombre}</Text>
       </View>
 
       {puedoConfirmar ? (
         <View>
+          {(partido.sets || []).map((s, i) => {
+            const ganSet = calcularGanadorSet(s.convocante, s.rival);
+            if (s.convocante === '-') return null;
+            return (
+              <View key={i} style={styles.setRow}>
+                <Text style={styles.setLabel}>Set {i + 1}</Text>
+                <Text style={[styles.setPuntaje, ganSet === 'convocante' && styles.setPuntajeGanador]}>
+                  {s.convocante}
+                </Text>
+                <Text style={styles.setGuion}>-</Text>
+                <Text style={[styles.setPuntaje, ganSet === 'rival' && styles.setPuntajeGanador]}>
+                  {s.rival}
+                </Text>
+              </View>
+            );
+          })}
+          <View style={styles.totalRow}>
+            <Text style={styles.totalTexto}>Sets: {partido.sets_convocante} - {partido.sets_rival}</Text>
+          </View>
           <View style={styles.aviso}>
-            <Text style={styles.avisoTexto}>
-              ✅ Tu rival cargó este resultado. ¿Es correcto?
-            </Text>
+            <Text style={styles.avisoTexto}>✅ Tu rival cargó este resultado. ¿Es correcto?</Text>
           </View>
           <TouchableOpacity style={styles.boton} onPress={confirmarResultado} disabled={cargando}>
             <Text style={styles.botonTexto}>{cargando ? 'Confirmando...' : 'Confirmar resultado'}</Text>
@@ -167,113 +198,78 @@ export default function Resultado({ navigation, route }) {
         <View>
           {yaCargo ? (
             <View style={styles.aviso}>
-              <Text style={styles.avisoTexto}>
-                ⏳ Resultado cargado. Esperando confirmación del rival.
-              </Text>
+              <Text style={styles.avisoTexto}>⏳ Resultado cargado. Esperando confirmación del rival.</Text>
             </View>
           ) : (
-            <TouchableOpacity style={styles.boton} onPress={cargarResultado} disabled={cargando}>
-              <Text style={styles.botonTexto}>{cargando ? 'Guardando...' : 'Enviar resultado'}</Text>
-            </TouchableOpacity>
+            <View>
+              {sets.map((s, i) => {
+                const bloqueado = s.convocante === '-' || s.rival === '-';
+                return (
+                  <View key={i} style={[styles.setRow, bloqueado && styles.setRowBloqueado]}>
+                    <Text style={styles.setLabel}>Set {i + 1}</Text>
+                    <TextInput
+                      style={[styles.setInput, bloqueado && styles.setInputBloqueado]}
+                      placeholder="0"
+                      value={bloqueado ? '-' : s.convocante}
+                      onChangeText={(v) => actualizarSet(i, 'convocante', v)}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      editable={!bloqueado}
+                    />
+                    <Text style={styles.setGuion}>-</Text>
+                    <TextInput
+                      style={[styles.setInput, bloqueado && styles.setInputBloqueado]}
+                      placeholder="0"
+                      value={bloqueado ? '-' : s.rival}
+                      onChangeText={(v) => actualizarSet(i, 'rival', v)}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      editable={!bloqueado}
+                    />
+                    <Text style={styles.setResultado}>
+                      {calcularGanadorSet(s.convocante, s.rival) ? '✓' : ''}
+                    </Text>
+                  </View>
+                );
+              })}
+              <View style={styles.totalRow}>
+                <Text style={styles.totalTexto}>Sets: {setsGanadosConvocante} - {setsGanadosRival}</Text>
+              </View>
+              <TouchableOpacity style={styles.boton} onPress={cargarResultado} disabled={cargando}>
+                <Text style={styles.botonTexto}>{cargando ? 'Guardando...' : 'Enviar resultado'}</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 24,
-    paddingTop: 60,
-  },
-  volver: {
-    color: '#1D9E75',
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  titulo: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: '#1D9E75',
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: '#F7F7F5',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-  },
-  jugadorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  jugadorNombre: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-  },
-  scoreInput: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    width: 48,
-    height: 48,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '500',
-    color: '#333',
-    borderWidth: 0.5,
-    borderColor: '#ddd',
-  },
-  scoreTexto: {
-    fontSize: 28,
-    fontWeight: '500',
-    color: '#1D9E75',
-    width: 48,
-    textAlign: 'center',
-  },
-  vs: {
-    textAlign: 'center',
-    color: '#999',
-    fontSize: 13,
-    paddingVertical: 4,
-  },
-  aviso: {
-    backgroundColor: '#E1F5EE',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  avisoTexto: {
-    fontSize: 12,
-    color: '#085041',
-    lineHeight: 18,
-  },
-  boton: {
-    backgroundColor: '#1D9E75',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  botonTexto: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  botonRechazar: {
-    borderWidth: 0.5,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  botonRechazarTexto: {
-    color: '#999',
-    fontSize: 15,
-  },
+  container: { flexGrow: 1, backgroundColor: '#fff', padding: 24, paddingTop: 60 },
+  volver: { color: '#1D9E75', fontSize: 14, marginBottom: 16 },
+  titulo: { fontSize: 24, fontWeight: '500', color: '#1D9E75', marginBottom: 12 },
+  formatoBadge: { backgroundColor: '#E1F5EE', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-start', marginBottom: 16 },
+  formatoTexto: { fontSize: 12, color: '#085041', fontWeight: '500' },
+  nombresRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  nombreJugador: { fontSize: 13, fontWeight: '500', color: '#333', flex: 1, textAlign: 'center' },
+  vs: { fontSize: 12, color: '#999', marginHorizontal: 8 },
+  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  setLabel: { fontSize: 12, color: '#999', width: 40 },
+  setInput: { backgroundColor: '#F7F7F5', borderRadius: 8, width: 48, height: 44, textAlign: 'center', fontSize: 18, fontWeight: '500', color: '#333' },
+  setGuion: { fontSize: 16, color: '#999' },
+  setPuntaje: { width: 48, textAlign: 'center', fontSize: 18, fontWeight: '500', color: '#333' },
+  setPuntajeGanador: { color: '#1D9E75' },
+  setResultado: { fontSize: 16, color: '#1D9E75', width: 20 },
+  totalRow: { backgroundColor: '#F7F7F5', borderRadius: 8, padding: 12, alignItems: 'center', marginVertical: 12 },
+  totalTexto: { fontSize: 16, fontWeight: '500', color: '#333' },
+  aviso: { backgroundColor: '#E1F5EE', borderRadius: 8, padding: 12, marginBottom: 16 },
+  avisoTexto: { fontSize: 12, color: '#085041', lineHeight: 18 },
+  boton: { backgroundColor: '#1D9E75', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  botonTexto: { color: '#fff', fontSize: 15, fontWeight: '500' },
+  botonRechazar: { borderWidth: 0.5, borderColor: '#ccc', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  botonRechazarTexto: { color: '#999', fontSize: 15 },
+  setRowBloqueado: { opacity: 0.3 },
+  setInputBloqueado: { backgroundColor: '#eee', color: '#999' },
 });
