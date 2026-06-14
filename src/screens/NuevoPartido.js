@@ -2,9 +2,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 
 export default function NuevoPartido({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [formato, setFormato] = useState('Mejor de 5');
   const [fecha, setFecha] = useState(new Date());
   const [hora, setHora] = useState(new Date());
@@ -267,8 +269,9 @@ export default function NuevoPartido({ navigation }) {
         )}
 
         <TouchableOpacity style={styles.boton} onPress={convocar} disabled={cargando}>
-          <Text style={styles.botonTexto}>{cargando ? 'Publicando...' : 'Publicar mesa'}</Text>
+           <Text style={styles.botonTexto}>{cargando ? 'Publicando...' : 'Publicar mesa'}</Text>
         </TouchableOpacity>
+      <View style={{ height: insets.bottom + 20 }} /> 
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -58,6 +58,10 @@ export default function Perfil({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <TouchableOpacity style={styles.btnSalirTop} onPress={cerrarSesion}>
+      <Text style={styles.btnSalirTopTexto}>Cerrar sesión</Text>
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarTexto}>
@@ -266,4 +270,13 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 15,
   },
+  btnSalirTop: {
+  alignSelf: 'flex-end',
+  marginBottom: 16,
+},
+btnSalirTopTexto: {
+  color: '#A32D2D',
+  fontSize: 13,
+  fontWeight: '500',
+},
 });
