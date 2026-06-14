@@ -2,9 +2,11 @@ import * as Linking from 'expo-linking';
 import { collection, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 
 export default function Partidos({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [partidos, setPartidos] = useState([]);
   const [miCategoria, setMiCategoria] = useState('');
 
@@ -84,6 +86,99 @@ export default function Partidos({ navigation }) {
       Alert.alert('Error', 'No se pudo abrir WhatsApp. Verificá que esté instalado.');
     });
   };
+  const cancelarPartido = async (partido) => {
+  const ahora = new Date();
+  const fechaPartido = partido.fechaHora?.toDate ? partido.fechaHora.toDate() : null;
+  const menosde24hs = fechaPartido && (fechaPartido - ahora) < 24 * 60 * 60 * 1000;
+  const esConvocante = auth.currentUser?.uid === partido.convocante;
+
+  if (partido.estado === 'abierta') {
+    Alert.alert(
+      'Cancelar partido',
+      '¿Confirmás que querés cancelar esta mesa?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            await updateDoc(doc(db, 'partidos', partido.id), {
+              estado: 'cancelada',
+              resultado_confirmado: true,
+            });
+          }
+        }
+      ]
+    );
+    return;
+  }
+
+  if (partido.estado === 'cerrada' && !menosde24hs) {
+    Alert.alert(
+      'Cancelar partido',
+      '¿Confirmás que querés cancelar? El rival será notificado.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            await updateDoc(doc(db, 'partidos', partido.id), {
+              estado: 'cancelada',
+              resultado_confirmado: true,
+            });
+          }
+        }
+      ]
+    );
+    return;
+  }
+
+  if (partido.estado === 'cerrada' && menosde24hs) {
+    const yaPidio = esConvocante ? partido.cancelacion_pedida_convocante : partido.cancelacion_pedida_rival;
+    const otroPidio = esConvocante ? partido.cancelacion_pedida_rival : partido.cancelacion_pedida_convocante;
+
+    if (otroPidio) {
+      Alert.alert(
+        'Confirmar cancelación',
+        'Tu rival quiere cancelar el partido. ¿Estás de acuerdo?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Sí, cancelar',
+            style: 'destructive',
+            onPress: async () => {
+              await updateDoc(doc(db, 'partidos', partido.id), {
+                estado: 'cancelada',
+                resultado_confirmado: true,
+              });
+            }
+          }
+        ]
+      );
+    } else if (yaPidio) {
+      Alert.alert('Esperando', 'Ya solicitaste cancelar. Esperando confirmación del rival.');
+    } else {
+      Alert.alert(
+        'Solicitar cancelación',
+        'Faltan menos de 24hs para el partido. Tu rival deberá confirmar la cancelación.',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Solicitar',
+            onPress: async () => {
+              const campo = esConvocante ? 'cancelacion_pedida_convocante' : 'cancelacion_pedida_rival';
+              await updateDoc(doc(db, 'partidos', partido.id), {
+                [campo]: true,
+              });
+              Alert.alert('Solicitud enviada', 'Tu rival verá tu pedido de cancelación.');
+            }
+          }
+        ]
+      );
+    }
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -130,7 +225,11 @@ export default function Partidos({ navigation }) {
     {partido.tipo === 'Ranking' ? '🏆 Por ranking' : '🤝 Amistoso'}
   </Text>
 )}
-
+     {partido.estado === 'abierta' && partido.convocante === auth.currentUser?.uid && (
+  <TouchableOpacity style={styles.btnCancelar} onPress={() => cancelarPartido(partido)}>
+    <Text style={styles.btnCancelarTexto}>Cancelar mesa</Text>
+  </TouchableOpacity>
+)}
         {partido.estado === 'abierta' && partido.convocante !== auth.currentUser?.uid && (
               <TouchableOpacity style={styles.btnUnirse} onPress={() => unirse(partido)}>
                 <Text style={styles.btnUnirseTexto}>¡Me uno!</Text>
@@ -181,11 +280,24 @@ export default function Partidos({ navigation }) {
         contactarWhatsApp(numeroContacto, nombreContacto);
       }}
     >
+      
       <Text style={styles.btnWhatsappTexto}>💬 Contactar por WhatsApp</Text>
     </TouchableOpacity>
-    {partido.rival === auth.currentUser?.uid && (
-      <TouchableOpacity
-        style={styles.btnSalir}
+    {(partido.convocante === auth.currentUser?.uid || partido.rival === auth.currentUser?.uid) && (
+  <TouchableOpacity
+    style={styles.btnCancelar}
+    onPress={() => cancelarPartido(partido)}
+  >
+    <Text style={styles.btnCancelarTexto}>
+      {partido.cancelacion_pedida_convocante || partido.cancelacion_pedida_rival
+        ? '⚠️ Cancelación pendiente'
+        : 'Cancelar partido'}
+    </Text>
+  </TouchableOpacity>
+)}
+{partido.rival === auth.currentUser?.uid && (
+  <TouchableOpacity
+    style={styles.btnSalir}
         onPress={() => {
           Alert.alert(
             'Salir de la mesa',
@@ -217,8 +329,8 @@ export default function Partidos({ navigation }) {
         ))}
       </ScrollView>
 
-      <TouchableOpacity style={styles.btnNuevo} onPress={() => navigation.navigate('NuevoPartido')}>
-        <Text style={styles.btnNuevoTexto}>+ Convocar partido</Text>
+      <TouchableOpacity style={[styles.btnNuevo, { marginBottom: insets.bottom + 8 }]} onPress={() => navigation.navigate('NuevoPartido')}>
+       <Text style={styles.btnNuevoTexto}>+ Convocar partido</Text>
       </TouchableOpacity>
     </View>
   );
@@ -384,6 +496,18 @@ btnCerrar: {
 },
 btnCerrarTexto: {
   color: '#3C3489',
+  fontSize: 13,
+  fontWeight: '500',
+},
+btnCancelar: {
+  backgroundColor: '#FCEBEB',
+  borderRadius: 8,
+  paddingVertical: 8,
+  alignItems: 'center',
+  marginTop: 6,
+},
+btnCancelarTexto: {
+  color: '#A32D2D',
   fontSize: 13,
   fontWeight: '500',
 },

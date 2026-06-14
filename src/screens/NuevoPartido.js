@@ -83,6 +83,13 @@ export default function NuevoPartido({ navigation }) {
       await addDoc(collection(db, 'partidos'), {
         fecha: formatFecha(fecha),
         hora: formatHora(hora),
+        fechaHora: new Date(
+        fecha.getFullYear(),
+        fecha.getMonth(),
+        fecha.getDate(),
+        hora.getHours(),
+        hora.getMinutes()
+      ),
         lugar,
         categoria,
         modalidad,

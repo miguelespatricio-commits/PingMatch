@@ -79,8 +79,21 @@ export default function Registro({ navigation }) {
 </View>
 
       <View style={styles.campo}>
-  <Text style={styles.label}>Número de celular (para contacto vía WhatsApp)</Text>
-  <TextInput style={styles.input} placeholder="Ej: 1123456789" value={celular} onChangeText={setCelular} keyboardType="numeric" />
+  <Text style={styles.label}>Celular (sin 0 ni 15)</Text>
+  <View style={styles.celularRow}>
+    <View style={styles.prefijo}>
+      <Text style={styles.prefijoTexto}>🇦🇷 +54 9</Text>
+    </View>
+    <TextInput
+      style={styles.inputCelular}
+      placeholder="11 2345 6789"
+      value={celular}
+      onChangeText={(v) => setCelular(v.replace(/[^0-9]/g, ''))}
+      keyboardType="numeric"
+      maxLength={10}
+    />
+  </View>
+  <Text style={styles.celularHint}>Ingresá código de área sin 0 y número sin 15</Text>
 </View>
 
       <View style={styles.campo}>
@@ -185,4 +198,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  celularRow: {
+  flexDirection: 'row',
+  gap: 8,
+},
+prefijo: {
+  backgroundColor: '#F7F7F5',
+  borderRadius: 8,
+  padding: 12,
+  justifyContent: 'center',
+},
+prefijoTexto: {
+  fontSize: 14,
+  color: '#333',
+  fontWeight: '500',
+},
+inputCelular: {
+  flex: 1,
+  backgroundColor: '#F7F7F5',
+  borderRadius: 8,
+  padding: 12,
+  fontSize: 14,
+  color: '#333',
+},
+celularHint: {
+  fontSize: 11,
+  color: '#999',
+  marginTop: 4,
+},
 });
