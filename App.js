@@ -7,6 +7,8 @@ import Partidos from './src/screens/Partidos';
 import NuevoPartido from './src/screens/NuevoPartido';
 import Resultado from './src/screens/Resultado';
 import Perfil from './src/screens/Perfil';
+import Ranking from './src/screens/Ranking';
+console.log('Ranking importado:', Ranking);
 
 const Stack = createStackNavigator();
 
@@ -15,12 +17,13 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Bienvenida" component={Bienvenida} />
+        <Stack.Screen name="Ranking" component={Ranking} />
         <Stack.Screen name="Registro" component={Registro} />
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Partidos" component={Partidos} />
         <Stack.Screen name="NuevoPartido" component={NuevoPartido} />
         <Stack.Screen name="Resultado" component={Resultado} />
-        <Stack.Screen name="Perfil" component={Perfil} />
+        <Stack.Screen name="Perfil" component={Perfil} />        
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -198,12 +198,14 @@ export default function Partidos({ navigation }) {
     <View style={styles.container}>
       <View style={styles.tituloRow}>
   <Text style={styles.titulo}>Mesas disponibles</Text>
-  <TouchableOpacity onPress={() => {
-  console.log('Navegando a Perfil...');
-  navigation.navigate('Perfil');
-}}>
-    <Text style={styles.perfilBtn}>👤 Perfil</Text>
-  </TouchableOpacity>
+  <View style={styles.headerBtns}>
+    <TouchableOpacity onPress={() => navigation.navigate('Ranking')}>
+      <Text style={styles.perfilBtn}>🏆 Ranking</Text>
+    </TouchableOpacity>
+    <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+      <Text style={styles.perfilBtn}>👤 Perfil</Text>
+    </TouchableOpacity>
+  </View>
 </View>
 
       <ScrollView style={styles.lista}>
@@ -524,5 +526,9 @@ btnCancelarTexto: {
   color: '#A32D2D',
   fontSize: 13,
   fontWeight: '500',
+},
+headerBtns: {
+  flexDirection: 'row',
+  gap: 12,
 },
 });
