@@ -79,13 +79,27 @@ export default function Partidos({ navigation }) {
     }
   };
 
-  const contactarWhatsApp = (numero, nombre) => {
-    const mensaje = encodeURIComponent(`Hola ${nombre}, te escribo por el partido que armamos en PingMatch.`);
-    const url = `whatsapp://send?phone=54${numero}&text=${mensaje}`;
-    Linking.openURL(url).catch(() => {
-      Alert.alert('Error', 'No se pudo abrir WhatsApp. Verificá que esté instalado.');
-    });
-  };
+  const contactarWhatsApp = (numero, nombre, partido) => {
+  if (!numero) {
+    Alert.alert('Sin número', 'El jugador no registró su número de celular.');
+    return;
+  }
+  const numeroLimpio = numero.replace(/[^0-9]/g, '').replace(/^0/, '');
+  const miNombre = partido.convocante === auth.currentUser?.uid
+    ? partido.convocante_nombre
+    : partido.rival_nombre;
+  const mensaje = encodeURIComponent(
+    `Hola ${nombre}, soy ${miNombre} 👋\n\n` +
+    `Te escribo por nuestro partido en PingMatch 🏓\n\n` +
+    `📅 ${partido.fecha} a las ${partido.hora}\n` +
+    `📍 ${partido.lugar}\n` +
+    `🏓 ${partido.modalidad} · ${partido.tipo}`
+  );
+  const url = `whatsapp://send?phone=549${numeroLimpio}&text=${mensaje}`;
+  Linking.openURL(url).catch(() => {
+    Alert.alert('Error', 'No se pudo abrir WhatsApp. Verificá que esté instalado.');
+  });
+};
   const cancelarPartido = async (partido) => {
   const ahora = new Date();
   const fechaPartido = partido.fechaHora?.toDate ? partido.fechaHora.toDate() : null;
@@ -277,7 +291,7 @@ export default function Partidos({ navigation }) {
         const esConvocante = auth.currentUser?.uid === partido.convocante;
         const numeroContacto = esConvocante ? partido.rival_celular : partido.convocante_celular;
         const nombreContacto = esConvocante ? partido.rival_nombre : partido.convocante_nombre;
-        contactarWhatsApp(numeroContacto, nombreContacto);
+        contactarWhatsApp(numeroContacto, nombreContacto, partido);
       }}
     >
       
