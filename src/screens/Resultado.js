@@ -31,11 +31,25 @@ export default function Resultado({ navigation, route }) {
   const puedoConfirmar = yaCargo && partido.resultado_cargado_por !== auth.currentUser.uid;
 
   const calcularGanadorSet = (puntosA, puntosB) => {
+    if (puntosA === '' || puntosB === '' || puntosA === undefined || puntosB === undefined) return null;
     const a = parseInt(puntosA) || 0;
     const b = parseInt(puntosB) || 0;
     if (a >= 11 && a - b >= 2) return 'convocante';
     if (b >= 11 && b - a >= 2) return 'rival';
     return null;
+  };
+  const setEsValido = (puntosA, puntosB) => {
+    if (puntosA === '' || puntosB === '' || puntosA === undefined || puntosB === undefined) return true;
+    const a = parseInt(puntosA);
+    const b = parseInt(puntosB);
+    if (isNaN(a) || isNaN(b)) return true;
+    const max = Math.max(a, b);
+    const min = Math.min(a, b);
+    const diferencia = max - min;
+
+    if (max < 11) return true;
+    if (max === 11) return diferencia >= 2;
+    return diferencia === 2;
   };
 
   const setsGanadosConvocante = sets.filter(s => calcularGanadorSet(s.convocante, s.rival) === 'convocante').length;
@@ -44,22 +58,39 @@ export default function Resultado({ navigation, route }) {
   const actualizarSet = (index, jugador, valor) => {
     const nuevos = [...sets];
     nuevos[index] = { ...nuevos[index], [jugador]: valor };
+    setSets(nuevos);
+  };
+
+  const validarSetCompleto = (index) => {
+    const s = sets[index];
+    if (s.convocante === '' || s.rival === '') return;
+
+    if (!setEsValido(s.convocante, s.rival)) {
+      Alert.alert(
+        'Resultado inválido',
+        'En tenis de mesa cada set se juega a 11 puntos. Si hay empate en 10 o más, el ganador debe sacar exactamente 2 puntos de diferencia.'
+      );
+      const limpiados = [...sets];
+      limpiados[index] = { convocante: '', rival: '' };
+      setSets(limpiados);
+      return;
+    }
 
     let ganConvocante = 0;
     let ganRival = 0;
-    const recalculados = nuevos.map((s) => {
+    const recalculados = sets.map((set) => {
       if (ganConvocante >= setsParaGanar || ganRival >= setsParaGanar) {
         return { convocante: '-', rival: '-' };
       }
       const g = calcularGanadorSet(
-        s.convocante === '-' ? '' : s.convocante,
-        s.rival === '-' ? '' : s.rival
+        set.convocante === '-' ? '' : set.convocante,
+        set.rival === '-' ? '' : set.rival
       );
       if (g === 'convocante') ganConvocante++;
       if (g === 'rival') ganRival++;
       return {
-        convocante: s.convocante === '-' ? '' : s.convocante,
-        rival: s.rival === '-' ? '' : s.rival
+        convocante: set.convocante === '-' ? '' : set.convocante,
+        rival: set.rival === '-' ? '' : set.rival
       };
     });
 
@@ -152,7 +183,7 @@ export default function Resultado({ navigation, route }) {
 
       <View style={styles.nombresRow}>
         <Text style={styles.nombreJugador}>{partido.convocante_nombre}</Text>
-        <Text style={styles.vs}>vs</Text>
+        <Text style={styles.vsHeader}>vs</Text>
         <Text style={styles.nombreJugador}>{partido.rival_nombre}</Text>
       </View>
 
@@ -202,29 +233,37 @@ export default function Resultado({ navigation, route }) {
             </View>
           ) : (
             <View>
-              {sets.map((s, i) => {
+             {sets.map((s, i) => {
                 const bloqueado = s.convocante === '-' || s.rival === '-';
+                const setAnteriorCompleto = i === 0 || (
+                  sets[i - 1].convocante !== '' &&
+                  sets[i - 1].rival !== '' &&
+                  calcularGanadorSet(sets[i - 1].convocante, sets[i - 1].rival) !== null
+                );
+                const habilitado = !bloqueado && setAnteriorCompleto;
                 return (
-                  <View key={i} style={[styles.setRow, bloqueado && styles.setRowBloqueado]}>
+                  <View key={i} style={[styles.setRow, bloqueado && styles.setRowBloqueado, !habilitado && !bloqueado && styles.setRowBloqueado]}>
                     <Text style={styles.setLabel}>Set {i + 1}</Text>
                     <TextInput
-                      style={[styles.setInput, bloqueado && styles.setInputBloqueado]}
+                      style={[styles.setInput, (bloqueado || !habilitado) && styles.setInputBloqueado]}
                       placeholder="0"
                       value={bloqueado ? '-' : s.convocante}
                       onChangeText={(v) => actualizarSet(i, 'convocante', v)}
+                      onBlur={() => validarSetCompleto(i)}
                       keyboardType="numeric"
                       maxLength={2}
-                      editable={!bloqueado}
+                      editable={habilitado}
                     />
                     <Text style={styles.setGuion}>-</Text>
                     <TextInput
-                      style={[styles.setInput, bloqueado && styles.setInputBloqueado]}
+                      style={[styles.setInput, (bloqueado || !habilitado) && styles.setInputBloqueado]}
                       placeholder="0"
                       value={bloqueado ? '-' : s.rival}
                       onChangeText={(v) => actualizarSet(i, 'rival', v)}
+                      onBlur={() => validarSetCompleto(i)}
                       keyboardType="numeric"
                       maxLength={2}
-                      editable={!bloqueado}
+                      editable={habilitado}
                     />
                     <Text style={styles.setResultado}>
                       {calcularGanadorSet(s.convocante, s.rival) ? '✓' : ''}
@@ -252,10 +291,10 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 24, fontWeight: '500', color: '#1D9E75', marginBottom: 12 },
   formatoBadge: { backgroundColor: '#E1F5EE', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-start', marginBottom: 16 },
   formatoTexto: { fontSize: 12, color: '#085041', fontWeight: '500' },
-  nombresRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  nombreJugador: { fontSize: 13, fontWeight: '500', color: '#333', flex: 1, textAlign: 'center' },
-  vs: { fontSize: 12, color: '#999', marginHorizontal: 8 },
-  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  nombresRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, alignSelf: 'center' },
+  nombreJugador: { fontSize: 15, fontWeight: '500', color: '#333', width: 90, textAlign: 'center' },
+  vsHeader: { fontSize: 12, color: '#999', width: 40, textAlign: 'center' },
+  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8, alignSelf: 'center' },
   setLabel: { fontSize: 12, color: '#999', width: 40 },
   setInput: { backgroundColor: '#F7F7F5', borderRadius: 8, width: 48, height: 44, textAlign: 'center', fontSize: 18, fontWeight: '500', color: '#333' },
   setGuion: { fontSize: 16, color: '#999' },

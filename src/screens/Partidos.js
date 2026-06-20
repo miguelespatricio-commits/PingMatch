@@ -54,23 +54,38 @@ export default function Partidos({ navigation }) {
       return;
     }
     if (partido.filtro_categoria && partido.filtro_categoria !== 'Cualquiera') {
-  const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
-  const indexMio = categorias.indexOf(miCategoria);
-  const indexPartido = categorias.indexOf(partido.categoria);
-  
-  if (partido.filtro_categoria === 'Solo mi categoría' && partido.categoria !== miCategoria) {
-    Alert.alert('No podés unirte', 'Esta mesa es solo para jugadores de ' + partido.categoria);
-    return;
-  }
-  if (partido.filtro_categoria === 'Mi categoría o superior' && indexMio > indexPartido) {
-    Alert.alert('No podés unirte', 'Esta mesa es para jugadores de ' + partido.categoria + ' o superior.');
-    return;
-  }
-}
+      const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
+      const indexMio = categorias.indexOf(miCategoria);
+      const indexPartido = categorias.indexOf(partido.categoria);
+
+      if (partido.filtro_categoria === 'Solo mi categoría' && partido.categoria !== miCategoria) {
+        Alert.alert('No podés unirte', 'Esta mesa es solo para jugadores de ' + partido.categoria);
+        return;
+      }
+      if (partido.filtro_categoria === 'Mi categoría o superior' && indexMio > indexPartido) {
+        Alert.alert('No podés unirte', 'Esta mesa es para jugadores de ' + partido.categoria + ' o superior.');
+        return;
+      }
+    }
+
+    Alert.alert(
+      'Confirmar partido',
+      'Estás por sumarte a este partido. Recordá que es un compromiso presentarte a jugar.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', onPress: () => confirmarUnion(partido) }
+      ]
+    );
+  };
+
+  const confirmarUnion = async (partido) => {
     try {
+      const snap = await getDoc(doc(db, 'usuarios', auth.currentUser.uid));
+      const perfil = snap.data();
       await updateDoc(doc(db, 'partidos', partido.id), {
         rival: auth.currentUser.uid,
-        rival_nombre: auth.currentUser.email,
+        rival_nombre: perfil.nombre + ' ' + perfil.apellido,
+        rival_celular: perfil.celular || '',
         estado: 'cerrada',
       });
       Alert.alert('¡Listo!', 'Te uniste al partido.');
