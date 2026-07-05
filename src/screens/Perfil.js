@@ -58,9 +58,14 @@ export default function Perfil({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity style={styles.btnSalirTop} onPress={cerrarSesion}>
-      <Text style={styles.btnSalirTopTexto}>Cerrar sesión</Text>
-      </TouchableOpacity>
+      <View style={styles.topBtns}>
+  <TouchableOpacity onPress={() => navigation.navigate('EditarPerfil')}>
+    <Text style={styles.btnEditarTexto}>✏️ Editar</Text>
+  </TouchableOpacity>
+  <TouchableOpacity onPress={cerrarSesion}>
+    <Text style={styles.btnSalirTopTexto}>Cerrar sesión</Text>
+  </TouchableOpacity>
+</View>
 
       <View style={styles.header}>
         <View style={styles.avatar}>
@@ -276,6 +281,17 @@ const styles = StyleSheet.create({
 },
 btnSalirTopTexto: {
   color: '#A32D2D',
+  fontSize: 13,
+  fontWeight: '500',
+},
+topBtns: {
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+  gap: 16,
+  marginBottom: 16,
+},
+btnEditarTexto: {
+  color: '#1D9E75',
   fontSize: 13,
   fontWeight: '500',
 },

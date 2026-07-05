@@ -78,8 +78,42 @@ export default function Partidos({ navigation }) {
     );
   };
 
-  const confirmarUnion = async (partido) => {
-    try {
+const confirmarUnion = async (partido) => {
+    if (partido.modalidad === 'Dobles') {
+      const jugadoresActuales = [
+        partido.convocante,
+        partido.rival1,
+        partido.rival2,
+        partido.rival3,
+      ].filter(Boolean).length;
+
+      if (jugadoresActuales >= 4) {
+        Alert.alert('Mesa llena', 'Esta mesa de dobles ya tiene 4 jugadores.');
+        return;
+      }
+
+      const snap = await getDoc(doc(db, 'usuarios', auth.currentUser.uid));
+      const perfil = snap.data();
+      const campoRival = !partido.rival1 ? 'rival1' : !partido.rival2 ? 'rival2' : 'rival3';
+      const campoNombre = campoRival + '_nombre';
+      const campoCelular = campoRival + '_celular';
+
+console.log('jugadoresActuales:', jugadoresActuales);
+console.log('rival1:', partido.rival1);
+console.log('rival2:', partido.rival2);
+console.log('rival3:', partido.rival3);
+      const totalDespues = jugadoresActuales + 1;
+      await updateDoc(doc(db, 'partidos', partido.id), {
+        [campoRival]: auth.currentUser.uid,
+        [campoNombre]: perfil.nombre + ' ' + perfil.apellido,
+        [campoCelular]: perfil.celular || '',
+        estado: totalDespues >= 4 ? 'cerrada' : 'abierta',
+      });
+      Alert.alert('¡Listo!', totalDespues >= 4 ? 'Mesa completa, ya son 4 jugadores.' : `Te sumaste. Faltan ${4 - totalDespues} jugadores más.`);
+      return;
+    }
+
+      try {
       const snap = await getDoc(doc(db, 'usuarios', auth.currentUser.uid));
       const perfil = snap.data();
       await updateDoc(doc(db, 'partidos', partido.id), {

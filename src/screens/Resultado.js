@@ -31,9 +31,11 @@ export default function Resultado({ navigation, route }) {
   const puedoConfirmar = yaCargo && partido.resultado_cargado_por !== auth.currentUser.uid;
 
   const calcularGanadorSet = (puntosA, puntosB) => {
-    if (puntosA === '' || puntosB === '' || puntosA === undefined || puntosB === undefined) return null;
+    if (puntosA === '' || puntosB === '' || 
+        puntosA === undefined || puntosB === undefined) return null;
     const a = parseInt(puntosA) || 0;
     const b = parseInt(puntosB) || 0;
+    if (a === 0 && b === 0) return null;
     if (a >= 11 && a - b >= 2) return 'convocante';
     if (b >= 11 && b - a >= 2) return 'rival';
     return null;
@@ -63,7 +65,12 @@ export default function Resultado({ navigation, route }) {
 
   const validarSetCompleto = (index) => {
     const s = sets[index];
-    if (s.convocante === '' || s.rival === '') return;
+    if (s.convocante === '' || s.rival === '' || 
+        s.convocante === undefined || s.rival === undefined) return;
+
+    const a = parseInt(s.convocante);
+    const b = parseInt(s.rival);
+    if (isNaN(a) || isNaN(b)) return;
 
     if (!setEsValido(s.convocante, s.rival)) {
       Alert.alert(
@@ -125,6 +132,18 @@ export default function Resultado({ navigation, route }) {
   const confirmarResultado = async () => {
     try {
       setCargando(true);
+      console.log('Tipo de partido:', partido.tipo);
+      console.log('partido.tipo:', partido.tipo);
+console.log('partidoInicial.tipo:', partidoInicial.tipo);
+if (partido.tipo === 'Amistoso' || partidoInicial.tipo === 'Amistoso') {
+        await updateDoc(doc(db, 'partidos', partido.id), {
+          resultado_confirmado: true,
+          resultado_pendiente: false,
+        });
+        Alert.alert('¡Confirmado!', 'Resultado del amistoso registrado. No afecta el ranking.');
+        navigation.navigate('Partidos');
+        return;
+      }
       const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
       const snapGanador = await getDoc(doc(db, 'usuarios', partido.ganador));
       const perdedorId = partido.ganador === partido.convocante ? partido.rival : partido.convocante;

@@ -43,9 +43,12 @@ export default function Registro({ navigation }) {
   { text: 'Entrar', onPress: () => navigation.navigate('Partidos') }
 ]);
     } catch (error) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setCargando(false);
+      let mensaje = 'Ocurrió un error al crear la cuenta.';
+      const codigo = error.code || '';
+      if (codigo.includes('email-already-in-use')) mensaje = 'Este correo ya está en uso. Probá con otro o iniciá sesión.';
+      else if (codigo.includes('invalid-email')) mensaje = 'El correo ingresado no es válido.';
+      else if (codigo.includes('weak-password')) mensaje = 'La contraseña debe tener al menos 6 caracteres.';
+      Alert.alert('Error', mensaje);
     }
   };
 
