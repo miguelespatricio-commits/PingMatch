@@ -98,10 +98,7 @@ const confirmarUnion = async (partido) => {
       const campoNombre = campoRival + '_nombre';
       const campoCelular = campoRival + '_celular';
 
-console.log('jugadoresActuales:', jugadoresActuales);
-console.log('rival1:', partido.rival1);
-console.log('rival2:', partido.rival2);
-console.log('rival3:', partido.rival3);
+
       const totalDespues = jugadoresActuales + 1;
       await updateDoc(doc(db, 'partidos', partido.id), {
         [campoRival]: auth.currentUser.uid,
