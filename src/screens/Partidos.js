@@ -288,9 +288,14 @@ const confirmarUnion = async (partido) => {
   </Text>
 )}
      {partido.estado === 'abierta' && partido.convocante === auth.currentUser?.uid && (
-  <TouchableOpacity style={styles.btnCancelar} onPress={() => cancelarPartido(partido)}>
-    <Text style={styles.btnCancelarTexto}>Cancelar mesa</Text>
-  </TouchableOpacity>
+  <View>
+    <TouchableOpacity style={styles.btnEditar} onPress={() => navigation.navigate('EditarPartido', { partido })}>
+      <Text style={styles.btnEditarTexto}>✏️ Editar mesa</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.btnCancelar} onPress={() => cancelarPartido(partido)}>
+      <Text style={styles.btnCancelarTexto}>Cancelar mesa</Text>
+    </TouchableOpacity>
+  </View>
 )}
         {partido.estado === 'abierta' && partido.convocante !== auth.currentUser?.uid && (
               <TouchableOpacity style={styles.btnUnirse} onPress={() => unirse(partido)}>
@@ -357,10 +362,10 @@ const confirmarUnion = async (partido) => {
     </Text>
   </TouchableOpacity>
 )}
-{partido.rival === auth.currentUser?.uid && (
+{partido.rival === auth.currentUser?.uid && !partido.cancelacion_pedida_convocante && !partido.cancelacion_pedida_rival && (
   <TouchableOpacity
     style={styles.btnSalir}
-        onPress={() => {
+    onPress={() => {
           Alert.alert(
             'Salir de la mesa',
             '¿Confirmás que querés salir? La mesa volverá a quedar abierta.',
@@ -576,5 +581,17 @@ btnCancelarTexto: {
 headerBtns: {
   flexDirection: 'row',
   gap: 12,
+},
+btnEditar: {
+  backgroundColor: '#E1F5EE',
+  borderRadius: 8,
+  paddingVertical: 8,
+  alignItems: 'center',
+  marginTop: 6,
+},
+btnEditarTexto: {
+  color: '#085041',
+  fontSize: 13,
+  fontWeight: '500',
 },
 });
