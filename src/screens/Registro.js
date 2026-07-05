@@ -12,6 +12,7 @@ export default function Registro({ navigation }) {
   const [categoria, setCategoria] = useState('');
   const [barrio, setBarrio] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [verPassword, setVerPassword] = useState(false);
   const [celular, setCelular] = useState('');
   
   const categorias = [
@@ -73,9 +74,20 @@ export default function Registro({ navigation }) {
       </View>
 
       <View style={styles.campo}>
-        <Text style={styles.label}>Contraseña</Text>
-        <TextInput style={styles.input} placeholder="Mínimo 6 caracteres" value={password} onChangeText={setPassword} secureTextEntry />
-      </View>
+  <Text style={styles.label}>Contraseña</Text>
+  <View style={styles.passwordRow}>
+    <TextInput
+      style={styles.inputPassword}
+      placeholder="Mínimo 6 caracteres"
+      value={password}
+      onChangeText={setPassword}
+      secureTextEntry={!verPassword}
+    />
+    <TouchableOpacity style={styles.ojoBtn} onPress={() => setVerPassword(!verPassword)}>
+      <Text style={styles.ojoTexto}>{verPassword ? '🙈' : '👁️'}</Text>
+    </TouchableOpacity>
+  </View>
+</View>
 
       <View style={styles.campo}>
   <Text style={styles.label}>Barrio</Text>
@@ -230,5 +242,23 @@ celularHint: {
   fontSize: 11,
   color: '#999',
   marginTop: 4,
+},
+passwordRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#F7F7F5',
+  borderRadius: 8,
+},
+inputPassword: {
+  flex: 1,
+  padding: 12,
+  fontSize: 14,
+  color: '#333',
+},
+ojoBtn: {
+  padding: 12,
+},
+ojoTexto: {
+  fontSize: 18,
 },
 });

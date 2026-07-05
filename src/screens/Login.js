@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
 export default function Login({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [verPassword, setVerPassword] = useState(false);
 
   const login = async () => {
     if (!email || !password) {
@@ -24,6 +25,19 @@ export default function Login({ navigation }) {
     }
   };
 
+  const olvidéContrasena = async () => {
+    if (!email) {
+      Alert.alert('Ingresá tu email', 'Escribí tu email arriba y luego tocá "Olvidé mi contraseña".');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert('Email enviado', `Te enviamos un link a ${email} para restablecer tu contraseña.`);
+    } catch (error) {
+      Alert.alert('Error', 'No pudimos enviar el email. Verificá que sea correcto.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>🏓</Text>
@@ -31,13 +45,35 @@ export default function Login({ navigation }) {
 
       <View style={styles.campo}>
         <Text style={styles.label}>Email</Text>
-        <TextInput style={styles.input} placeholder="tu@email.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <TextInput
+          style={styles.input}
+          placeholder="tu@email.com"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
       </View>
 
       <View style={styles.campo}>
         <Text style={styles.label}>Contraseña</Text>
-        <TextInput style={styles.input} placeholder="Tu contraseña" value={password} onChangeText={setPassword} secureTextEntry />
+        <View style={styles.passwordRow}>
+          <TextInput
+            style={styles.inputPassword}
+            placeholder="Tu contraseña"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!verPassword}
+          />
+          <TouchableOpacity style={styles.ojoBtn} onPress={() => setVerPassword(!verPassword)}>
+            <Text style={styles.ojoTexto}>{verPassword ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <TouchableOpacity onPress={olvidéContrasena} style={styles.olvidéBtn}>
+        <Text style={styles.olvidéTexto}>Olvidé mi contraseña</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.boton} onPress={login} disabled={cargando}>
         <Text style={styles.botonTexto}>{cargando ? 'Entrando...' : 'Entrar'}</Text>
@@ -85,12 +121,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F7F7F5',
+    borderRadius: 8,
+  },
+  inputPassword: {
+    flex: 1,
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+  },
+  ojoBtn: {
+    padding: 12,
+  },
+  ojoTexto: {
+    fontSize: 18,
+  },
+  olvidéBtn: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+  },
+  olvidéTexto: {
+    color: '#1D9E75',
+    fontSize: 13,
+  },
   boton: {
     backgroundColor: '#1D9E75',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 16,
   },
   botonTexto: {
@@ -103,4 +164,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 13,
   },
+  
 });
