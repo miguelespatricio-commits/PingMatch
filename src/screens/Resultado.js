@@ -137,9 +137,11 @@ export default function Resultado({ navigation, route }) {
 console.log('partidoInicial.tipo:', partidoInicial.tipo);
 if (partido.tipo === 'Amistoso' || partidoInicial.tipo === 'Amistoso') {
         await updateDoc(doc(db, 'partidos', partido.id), {
-          resultado_confirmado: true,
-          resultado_pendiente: false,
-        });
+        resultado_confirmado: true,
+        resultado_pendiente: false,
+        puntosGanados,
+        puntosPerdidos,
+      });
         Alert.alert('¡Confirmado!', 'Resultado del amistoso registrado. No afecta el ranking.');
         navigation.navigate('Partidos');
         return;
@@ -175,6 +177,8 @@ if (partido.tipo === 'Amistoso' || partidoInicial.tipo === 'Amistoso') {
       await updateDoc(doc(db, 'partidos', partido.id), {
         resultado_confirmado: true,
         resultado_pendiente: false,
+        puntosGanados: puntosGanador,
+        puntosPerdidos: puntosPerdedor,
       });
 
       Alert.alert('¡Confirmado!', `+${puntosGanador} pts al ganador · +${puntosPerdedor} pts al perdedor.`);

@@ -24,22 +24,23 @@ export default function Perfil({ navigation }) {
     const q1 = query(collection(db, 'partidos'), where('convocante', '==', uid), where('resultado_confirmado', '==', true));
     const q2 = query(collection(db, 'partidos'), where('rival', '==', uid), where('resultado_confirmado', '==', true));
 
+    let lista1 = [];
+    let lista2 = [];
+
+    const combinar = () => {
+      const todos = [...lista1, ...lista2];
+      const unicos = todos.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      setHistorial(unicos);
+    };
+
     const unsub1 = onSnapshot(q1, (snap) => {
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setHistorial(prev => {
-        const ids = prev.map(p => p.id);
-        const nuevos = lista.filter(p => !ids.includes(p.id));
-        return [...prev.filter(p => lista.find(l => l.id === p.id) || p.rival === uid), ...nuevos];
-      });
+      lista1 = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      combinar();
     });
 
     const unsub2 = onSnapshot(q2, (snap) => {
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setHistorial(prev => {
-        const ids = prev.map(p => p.id);
-        const nuevos = lista.filter(p => !ids.includes(p.id));
-        return [...prev.filter(p => lista.find(l => l.id === p.id) || p.convocante === uid), ...nuevos];
-      });
+      lista2 = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      combinar();
     });
 
     return () => { unsub1(); unsub2(); };
@@ -120,6 +121,38 @@ export default function Perfil({ navigation }) {
             </View>
             <Text style={styles.historialRival}>vs {rivalNombre}</Text>
             <Text style={styles.historialScore}>{misSets} - {setRival}</Text>
+
+            {partido.sets && partido.sets.length > 0 && (
+              <View style={styles.setsContainer}>
+                {partido.sets.filter(s => s.convocante !== '-' && s.convocante !== '').map((s, i) => {
+                  const yoGaneSet = fueConvocante
+                    ? parseInt(s.convocante) > parseInt(s.rival)
+                    : parseInt(s.rival) > parseInt(s.convocante);
+                  return (
+                    <View key={i} style={styles.setRow}>
+                      <Text style={styles.setLabel}>Set {i + 1}</Text>
+                      <Text style={[styles.setPts, yoGaneSet && styles.setPtsGanador]}>
+                        {fueConvocante ? s.convocante : s.rival}
+                      </Text>
+                      <Text style={styles.setGuion}>-</Text>
+                      <Text style={[styles.setPts, !yoGaneSet && styles.setPtsGanador]}>
+                        {fueConvocante ? s.rival : s.convocante}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {partido.tipo === 'Ranking' && (partido.puntosGanados || partido.puntosPerdidos) ? (
+              <Text style={[styles.rankPuntos, gane ? styles.rankGanado : styles.rankPerdido]}>
+                {gane
+                  ? `🏆 +${partido.puntosGanados} pts ranking`
+                  : `🏆 +${partido.puntosPerdidos} pts ranking`}
+              </Text>
+            ) : partido.tipo === 'Amistoso' ? (
+              <Text style={styles.rankAmistoso}>🤝 Amistoso · no afecta ranking</Text>
+            ) : null}
             <Text style={styles.historialLugar}>📍 {partido.lugar}</Text>
           </View>
         );
@@ -294,5 +327,52 @@ btnEditarTexto: {
   color: '#1D9E75',
   fontSize: 13,
   fontWeight: '500',
+},
+setsContainer: {
+  backgroundColor: '#F7F7F5',
+  borderRadius: 8,
+  padding: 8,
+  marginVertical: 6,
+},
+setRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  paddingVertical: 2,
+},
+setLabel: {
+  fontSize: 11,
+  color: '#999',
+  width: 36,
+},
+setPts: {
+  fontSize: 13,
+  fontWeight: '500',
+  color: '#666',
+  width: 24,
+  textAlign: 'center',
+},
+setPtsGanador: {
+  color: '#1D9E75',
+},
+setGuion: {
+  fontSize: 12,
+  color: '#999',
+},
+rankPuntos: {
+  fontSize: 12,
+  fontWeight: '500',
+  marginTop: 4,
+},
+rankGanado: {
+  color: '#1D9E75',
+},
+rankPerdido: {
+  color: '#A32D2D',
+},
+rankAmistoso: {
+  fontSize: 12,
+  color: '#999',
+  marginTop: 4,
 },
 });
