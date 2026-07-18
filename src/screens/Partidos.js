@@ -8,6 +8,11 @@ import { auth, db } from '../config/firebase';
 export default function Partidos({ navigation }) {
   const insets = useSafeAreaInsets();
   const [partidosBase, setPartidosBase] = useState([]);
+  const [expandidos, setExpandidos] = useState({});
+
+  const toggleExpandir = (id) => {
+  setExpandidos(prev => ({ ...prev, [id]: !prev[id] }));
+};
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [filtroCategoriaActivo, setFiltroCategoriaActivo] = useState('Todas');
   const [filtroModalidad, setFiltroModalidad] = useState('Todas');
@@ -344,44 +349,57 @@ export default function Partidos({ navigation }) {
           const esConvocante = auth.currentUser?.uid === partido.convocante;
           const esRival = auth.currentUser?.uid === partido.rival;
           const esParticipante = esConvocante || esRival;
+          const expandido = expandidos[partido.id];
 
           return (
-            <View key={partido.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitulo}>{partido.convocante_nombre} convoca</Text>
-                <View style={styles.badgesRow}>
-                  {partido.filtro_categoria && (
-                    <View style={styles.badgeFiltro}>
-                      <Text style={styles.badgeFiltroTexto}>
-                        {partido.filtro_categoria === 'Solo mi categoría' ? '🔒 ' + partido.categoria :
-                         partido.filtro_categoria === 'Mi categoría o superior' ? '📈 ' + partido.categoria + '+' :
-                         '🌐 Todos'}
+            <TouchableOpacity 
+              key={partido.id} 
+              style={styles.card}
+              onPress={() => toggleExpandir(partido.id)}
+              activeOpacity={0.9}
+            >
+              <View style={styles.cardImagenContainer}>
+                <Text style={styles.cardImagenEmoji}>🏓</Text>
+                <View style={styles.cardImagenOverlay}>
+                  <View style={styles.badgesRow}>
+                    {partido.filtro_categoria && (
+                      <View style={styles.badgeFiltro}>
+                        <Text style={styles.badgeFiltroTexto}>
+                          {partido.filtro_categoria === 'Solo mi categoría' ? '🔒 ' + partido.categoria :
+                           partido.filtro_categoria === 'Mi categoría o superior' ? '📈 ' + partido.categoria + '+' :
+                           '🌐 Todos'}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={[styles.badge, partido.estado === 'abierta' ? styles.badgeAbierta : styles.badgeCerrada]}>
+                      <Text style={[styles.badgeTexto, partido.estado === 'abierta' ? styles.badgeTextoAbierta : styles.badgeTextoCerrada]}>
+                        {partido.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
                       </Text>
                     </View>
-                  )}
-                  <View style={[styles.badge, partido.estado === 'abierta' ? styles.badgeAbierta : styles.badgeCerrada]}>
-                    <Text style={[styles.badgeTexto, partido.estado === 'abierta' ? styles.badgeTextoAbierta : styles.badgeTextoCerrada]}>
-                      {partido.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
-                    </Text>
                   </View>
                 </View>
               </View>
 
-              <Text style={styles.cardDetalle}>📅 {partido.fecha} · {partido.hora}</Text>
-              <Text style={styles.cardDetalle}>📍 {partido.lugar}</Text>
-              <Text style={styles.cardDetalle}>🏓 {partido.categoria} · {partido.modalidad}</Text>
-              {partido.tipo && (
-                <Text style={styles.cardDetalle}>
-                  {partido.tipo === 'Ranking' ? '🏆 Por ranking' : '🤝 Amistoso'}
-                </Text>
-              )}
-              {partido.estado === 'cerrada' && partido.rival_nombre && (
-                <View style={styles.rivalInfo}>
-                  <Text style={styles.rivalInfoTitulo}>Jugadores</Text>
-                  <Text style={styles.rivalInfoTexto}>👤 {partido.convocante_nombre}</Text>
-                  <Text style={styles.rivalInfoTexto}>👤 {partido.rival_nombre}</Text>
-                </View>
-              )}
+              <View style={styles.cardBody}>
+                <Text style={styles.cardTitulo}>{partido.convocante_nombre} convoca</Text>
+                <Text style={styles.cardDetalle}>📅 {partido.fecha} · {partido.hora}</Text>
+                <Text style={styles.cardDetalle}>🏓 {partido.categoria} · {partido.modalidad}</Text>
+
+                {expandido && (
+                  <View style={styles.cardExpandido}>
+                    <Text style={styles.cardDetalle}>📍 {partido.lugar}</Text>
+                    {partido.tipo && (
+                      <Text style={styles.cardDetalle}>
+                        {partido.tipo === 'Ranking' ? '🏆 Por ranking' : '🤝 Amistoso'}
+                      </Text>
+                    )}
+                    {partido.estado === 'cerrada' && partido.rival_nombre && (
+                      <View style={styles.rivalInfo}>
+                        <Text style={styles.rivalInfoTitulo}>Jugadores</Text>
+                        <Text style={styles.rivalInfoTexto}>👤 {partido.convocante_nombre}</Text>
+                        <Text style={styles.rivalInfoTexto}>👤 {partido.rival_nombre}</Text>
+                      </View>
+                    )}
 
               {partido.estado === 'abierta' && esConvocante && (
                 <View>
@@ -465,6 +483,10 @@ export default function Partidos({ navigation }) {
                 </View>
               )}
             </View>
+                )}
+                <Text style={styles.expandirTexto}>{expandido ? '▲ menos' : '▾ más info'}</Text>
+              </View>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>
@@ -481,9 +503,51 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 28, fontWeight: '500', color: '#1D9E75' },
   lista: { flex: 1 },
   vacio: { color: '#999', textAlign: 'center', marginTop: 40, fontSize: 14 },
-  card: { backgroundColor: '#F7F7F5', borderRadius: 12, padding: 14, marginBottom: 12 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  cardTitulo: { fontSize: 14, fontWeight: '500', color: '#333' },
+  card: {
+  backgroundColor: '#F7F7F5',
+  borderRadius: 16,
+  marginBottom: 12,
+  overflow: 'hidden',
+},
+cardImagenContainer: {
+  height: 100,
+  backgroundColor: '#1D9E75',
+  alignItems: 'center',
+  justifyContent: 'center',
+  position: 'relative',
+},
+cardImagenEmoji: {
+  fontSize: 48,
+},
+cardImagenOverlay: {
+  position: 'absolute',
+  top: 8,
+  right: 8,
+  left: 8,
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+},
+cardBody: {
+  padding: 12,
+},
+cardTitulo: {
+  fontSize: 14,
+  fontWeight: '500',
+  color: '#333',
+  marginBottom: 6,
+},
+cardExpandido: {
+  marginTop: 8,
+  paddingTop: 8,
+  borderTopWidth: 0.5,
+  borderTopColor: '#e0e0e0',
+},
+expandirTexto: {
+  fontSize: 11,
+  color: '#1D9E75',
+  marginTop: 8,
+  textAlign: 'right',
+},
   badge: { borderRadius: 99, paddingVertical: 2, paddingHorizontal: 10 },
   badgeAbierta: { backgroundColor: '#E1F5EE' },
   badgeCerrada: { backgroundColor: '#EEEDFE' },
