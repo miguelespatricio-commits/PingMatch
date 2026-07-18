@@ -8,6 +8,7 @@ import NuevoPartido from './src/screens/NuevoPartido';
 import Resultado from './src/screens/Resultado';
 import Perfil from './src/screens/Perfil';
 import Ranking from './src/screens/Ranking';
+import Home from './src/screens/Home';
 import EditarPerfil from './src/screens/EditarPerfil';
 import EditarPartido from './src/screens/EditarPartido';
 console.log('Ranking importado:', Ranking);
@@ -20,6 +21,7 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Bienvenida" component={Bienvenida} />
         <Stack.Screen name="Ranking" component={Ranking} />
+        <Stack.Screen name="Home" component={Home} />
         <Stack.Screen name="EditarPerfil" component={EditarPerfil} />
         <Stack.Screen name="EditarPartido" component={EditarPartido} />
         <Stack.Screen name="Registro" component={Registro} />

@@ -27,9 +27,14 @@ export default function Ranking({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.volver}>← Volver</Text>
-      </TouchableOpacity>
+      <View style={styles.navRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.volver}>← Volver</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+          <Text style={styles.homeBtn}>🏠</Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={styles.titulo}>Ranking</Text>
 
@@ -112,4 +117,13 @@ const styles = StyleSheet.create({
   puntosContainer: { alignItems: 'center' },
   puntos: { fontSize: 18, fontWeight: '500', color: '#1D9E75' },
   puntosLabel: { fontSize: 10, color: '#999' },
+  navRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 16,
+},
+homeBtn: {
+  fontSize: 20,
+},
 });

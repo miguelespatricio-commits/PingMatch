@@ -1,12 +1,22 @@
 import * as Linking from 'expo-linking';
 import { collection, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 
 export default function Partidos({ navigation }) {
   const insets = useSafeAreaInsets();
+  const [partidosBase, setPartidosBase] = useState([]);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtroCategoriaActivo, setFiltroCategoriaActivo] = useState('Todas');
+  const [filtroModalidad, setFiltroModalidad] = useState('Todas');
+  const [filtroTipo, setFiltroTipo] = useState('Todos');
+  const [filtroZona, setFiltroZona] = useState('');
+  const [mostrarDropdownCat, setMostrarDropdownCat] = useState(false);
+  const [filtrosPendientes, setFiltrosPendientes] = useState({
+    categoria: 'Todas', modalidad: 'Todas', tipo: 'Todos', zona: ''
+  });
   const [partidos, setPartidos] = useState([]);
   const [miCategoria, setMiCategoria] = useState('');
 
@@ -21,7 +31,6 @@ export default function Partidos({ navigation }) {
   }, []);
 
   useEffect(() => {
-    const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
     const unsub = onSnapshot(collection(db, 'partidos'), (snapshot) => {
       const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const sinTerminados = lista.filter(partido => !partido.resultado_confirmado);
@@ -32,10 +41,18 @@ export default function Partidos({ navigation }) {
         if (partido.filtro_categoria === 'Mi categoría o superior') return true;
         return true;
       });
-      setPartidos(listaFiltrada);
+      setPartidosBase(listaFiltrada);
     });
     return unsub;
   }, [miCategoria]);
+
+  const partidosFiltrados = partidosBase.filter(p => {
+    if (filtroCategoriaActivo !== 'Todas' && p.categoria !== filtroCategoriaActivo) return false;
+    if (filtroModalidad !== 'Todas' && p.modalidad !== filtroModalidad) return false;
+    if (filtroTipo !== 'Todos' && p.tipo !== filtroTipo) return false;
+    if (filtroZona && !p.lugar?.toLowerCase().includes(filtroZona.toLowerCase())) return false;
+    return true;
+  });
 
   const unirse = async (partido) => {
     if (!auth.currentUser) {
@@ -181,23 +198,146 @@ export default function Partidos({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.tituloRow}>
-        <Text style={styles.titulo}>Mesas disponibles</Text>
-        <View style={styles.headerBtns}>
-          <TouchableOpacity onPress={() => navigation.navigate('Ranking')}>
-            <Text style={styles.perfilBtn}>🏆 Ranking</Text>
+      <View style={styles.headerContainer}>
+  <View style={styles.headerTop}>
+    <Text style={styles.logo}>🏓</Text>
+    <Text style={styles.titulo}>PingMatch</Text>
+  </View>
+  <Text style={styles.subtitulo}>Mesas disponibles</Text>
+  <View style={styles.navBar}>
+    <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Home')}>
+      <Text style={styles.navBtn}>🏠</Text>
+      <Text style={styles.navLabel}>Principal</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Ranking')}>
+      <Text style={styles.navBtn}>🏆</Text>
+      <Text style={styles.navLabel}>Ranking</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Perfil')}>
+      <Text style={styles.navBtn}>👤</Text>
+      <Text style={styles.navLabel}>Mi perfil</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.navItem} onPress={() => setMostrarFiltros(!mostrarFiltros)}>
+      <Text style={styles.navBtn}>🔍</Text>
+      <Text style={styles.navLabel}>Buscar</Text>
+    </TouchableOpacity>
+  </View>
+</View>
+
+      <Modal visible={mostrarFiltros} transparent animationType="slide">
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setMostrarFiltros(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalPanel}>
+            <Text style={styles.modalTitulo}>Filtrar mesas</Text>
+
+            <View style={styles.filtroCampo}>
+              <Text style={styles.filtroLabel}>Categoría</Text>
+              <TouchableOpacity 
+                style={styles.dropdown}
+                onPress={() => setMostrarDropdownCat(!mostrarDropdownCat)}
+              >
+                <Text style={styles.dropdownTexto}>{filtrosPendientes.categoria}</Text>
+                <Text style={styles.dropdownArrow}>{mostrarDropdownCat ? '▲' : '▾'}</Text>
+              </TouchableOpacity>
+              {mostrarDropdownCat && (
+                <View style={styles.dropdownOpciones}>
+                  {['Todas', 'Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'].map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.dropdownOpcion, filtrosPendientes.categoria === cat && styles.dropdownOpcionActiva]}
+                      onPress={() => {
+                        setFiltrosPendientes(prev => ({ ...prev, categoria: cat }));
+                        setMostrarDropdownCat(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownOpcionTexto, filtrosPendientes.categoria === cat && styles.dropdownOpcionTextoActivo]}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.filtroCampo}>
+              <Text style={styles.filtroLabel}>Modalidad</Text>
+              <View style={styles.filtroRow}>
+                {['Todas', 'Singles', 'Dobles'].map((mod) => (
+                  <TouchableOpacity
+                    key={mod}
+                    style={[styles.filtroChip, filtrosPendientes.modalidad === mod && styles.filtroChipActivo]}
+                    onPress={() => setFiltrosPendientes(prev => ({ ...prev, modalidad: mod }))}
+                  >
+                    <Text style={[styles.filtroChipTexto, filtrosPendientes.modalidad === mod && styles.filtroChipTextoActivo]}>
+                      {mod}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filtroCampo}>
+              <Text style={styles.filtroLabel}>Tipo</Text>
+              <View style={styles.filtroRow}>
+                {['Todos', 'Ranking', 'Amistoso'].map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.filtroChip, filtrosPendientes.tipo === t && styles.filtroChipActivo]}
+                    onPress={() => setFiltrosPendientes(prev => ({ ...prev, tipo: t }))}
+                  >
+                    <Text style={[styles.filtroChipTexto, filtrosPendientes.tipo === t && styles.filtroChipTextoActivo]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filtroCampo}>
+              <Text style={styles.filtroLabel}>Zona / Barrio</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {['Todos', ...new Set(partidosBase.map(p => p.lugar?.split(',')[0]).filter(Boolean))].map((zona) => (
+                  <TouchableOpacity
+                    key={zona}
+                    style={[styles.filtroChip, filtrosPendientes.zona === (zona === 'Todos' ? '' : zona) && styles.filtroChipActivo]}
+                    onPress={() => setFiltrosPendientes(prev => ({ ...prev, zona: zona === 'Todos' ? '' : zona }))}
+                  >
+                    <Text style={[styles.filtroChipTexto, filtrosPendientes.zona === (zona === 'Todos' ? '' : zona) && styles.filtroChipTextoActivo]}>
+                      {zona}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.btnLimpiar} onPress={() => {
+                setFiltrosPendientes({ categoria: 'Todas', modalidad: 'Todas', tipo: 'Todos', zona: '' });
+              }}>
+                <Text style={styles.btnLimpiarTexto}>Limpiar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnAplicar} onPress={() => {
+                setFiltroCategoriaActivo(filtrosPendientes.categoria);
+                setFiltroModalidad(filtrosPendientes.modalidad);
+                setFiltroTipo(filtrosPendientes.tipo);
+                setFiltroZona(filtrosPendientes.zona);
+                setMostrarFiltros(false);
+              }}>
+                <Text style={styles.btnAplicarTexto}>Aplicar filtros</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
-            <Text style={styles.perfilBtn}>👤 Perfil</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </Modal>
 
       <ScrollView style={styles.lista}>
-        {partidos.length === 0 && (
+        {partidosFiltrados.length === 0 && (
           <Text style={styles.vacio}>No hay partidos disponibles. ¡Convocá uno!</Text>
         )}
-        {partidos.map((partido) => {
+        {partidosFiltrados.map((partido) => {
           const ahora = new Date();
           const fechaPartido = partido.fechaHora?.toDate ? partido.fechaHora.toDate() : null;
           const menosde24hs = fechaPartido && (fechaPartido - ahora) < 24 * 60 * 60 * 1000;
@@ -338,7 +478,7 @@ export default function Partidos({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 24, paddingTop: 60 },
-  titulo: { fontSize: 24, fontWeight: '500', color: '#1D9E75' },
+  titulo: { fontSize: 28, fontWeight: '500', color: '#1D9E75' },
   lista: { flex: 1 },
   vacio: { color: '#999', textAlign: 'center', marginTop: 40, fontSize: 14 },
   card: { backgroundColor: '#F7F7F5', borderRadius: 12, padding: 14, marginBottom: 12 },
@@ -376,4 +516,220 @@ const styles = StyleSheet.create({
   headerBtns: { flexDirection: 'row', gap: 12 },
   btnEditar: { backgroundColor: '#E1F5EE', borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 6 },
   btnEditarTexto: { color: '#085041', fontSize: 13, fontWeight: '500' },
+  filtrosPanel: {
+  backgroundColor: '#F7F7F5',
+  borderRadius: 12,
+  padding: 14,
+  marginBottom: 12,
+},
+filtroCampo: {
+  marginBottom: 10,
+},
+filtroLabel: {
+  fontSize: 11,
+  color: '#999',
+  fontWeight: '500',
+  marginBottom: 6,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+},
+filtroRow: {
+  flexDirection: 'row',
+  gap: 6,
+},
+filtroChip: {
+  backgroundColor: '#fff',
+  borderRadius: 99,
+  paddingVertical: 4,
+  paddingHorizontal: 12,
+  marginRight: 6,
+  borderWidth: 0.5,
+  borderColor: '#ddd',
+},
+filtroChipActivo: {
+  backgroundColor: '#1D9E75',
+  borderColor: '#1D9E75',
+},
+filtroChipTexto: {
+  fontSize: 12,
+  color: '#666',
+},
+filtroChipTextoActivo: {
+  color: '#fff',
+  fontWeight: '500',
+},
+filtroInput: {
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  padding: 10,
+  fontSize: 13,
+  color: '#333',
+  borderWidth: 0.5,
+  borderColor: '#ddd',
+},
+filtroLimpiar: {
+  alignSelf: 'flex-end',
+  marginTop: 4,
+},
+filtroLimpiarTexto: {
+  fontSize: 12,
+  color: '#1D9E75',
+  fontWeight: '500',
+},
+modalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'flex-end',
+},
+modalPanel: {
+  backgroundColor: '#fff',
+  borderTopLeftRadius: 20,
+  borderTopRightRadius: 20,
+  padding: 24,
+  paddingBottom: 40,
+},
+modalTitulo: {
+  fontSize: 18,
+  fontWeight: '500',
+  color: '#333',
+  marginBottom: 20,
+},
+filtroCampo: {
+  marginBottom: 16,
+},
+filtroLabel: {
+  fontSize: 11,
+  color: '#999',
+  fontWeight: '500',
+  marginBottom: 8,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+},
+filtroRow: {
+  flexDirection: 'row',
+  gap: 6,
+},
+filtroChip: {
+  backgroundColor: '#F7F7F5',
+  borderRadius: 99,
+  paddingVertical: 6,
+  paddingHorizontal: 14,
+  marginRight: 6,
+},
+filtroChipActivo: {
+  backgroundColor: '#1D9E75',
+},
+filtroChipTexto: {
+  fontSize: 12,
+  color: '#666',
+},
+filtroChipTextoActivo: {
+  color: '#fff',
+  fontWeight: '500',
+},
+dropdown: {
+  backgroundColor: '#F7F7F5',
+  borderRadius: 8,
+  padding: 12,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+dropdownTexto: {
+  fontSize: 14,
+  color: '#333',
+},
+dropdownArrow: {
+  fontSize: 12,
+  color: '#999',
+},
+dropdownOpciones: {
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  borderWidth: 0.5,
+  borderColor: '#ddd',
+  marginTop: 4,
+},
+dropdownOpcion: {
+  padding: 12,
+  borderBottomWidth: 0.5,
+  borderBottomColor: '#f0f0f0',
+},
+dropdownOpcionActiva: {
+  backgroundColor: '#E1F5EE',
+},
+dropdownOpcionTexto: {
+  fontSize: 13,
+  color: '#333',
+},
+dropdownOpcionTextoActivo: {
+  color: '#1D9E75',
+  fontWeight: '500',
+},
+modalBtns: {
+  flexDirection: 'row',
+  gap: 10,
+  marginTop: 8,
+},
+btnLimpiar: {
+  flex: 1,
+  borderWidth: 0.5,
+  borderColor: '#ccc',
+  borderRadius: 10,
+  paddingVertical: 12,
+  alignItems: 'center',
+},
+btnLimpiarTexto: {
+  color: '#666',
+  fontSize: 14,
+},
+btnAplicar: {
+  flex: 2,
+  backgroundColor: '#1D9E75',
+  borderRadius: 10,
+  paddingVertical: 12,
+  alignItems: 'center',
+},
+btnAplicarTexto: {
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: '500',
+},
+headerContainer: {
+  marginBottom: 16,
+},
+headerTop: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+  marginBottom: 4,
+},
+logo: {
+  fontSize: 28,
+},
+subtitulo: {
+  fontSize: 23,
+  color: '#999',
+  marginBottom: 12,
+},
+navBar: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  backgroundColor: '#F7F7F5',
+  borderRadius: 12,
+  padding: 10,
+},
+navItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 4,
+},
+navBtn: {
+  fontSize: 16,
+},
+navLabel: {
+  fontSize: 12,
+  color: '#1D9E75',
+  fontWeight: '500',
+},
 });

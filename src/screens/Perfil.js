@@ -60,12 +60,17 @@ export default function Perfil({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.topBtns}>
-  <TouchableOpacity onPress={() => navigation.navigate('EditarPerfil')}>
-    <Text style={styles.btnEditarTexto}>✏️ Editar</Text>
+  <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+    <Text style={styles.homeBtn}>🏠</Text>
   </TouchableOpacity>
-  <TouchableOpacity onPress={cerrarSesion}>
-    <Text style={styles.btnSalirTopTexto}>Cerrar sesión</Text>
-  </TouchableOpacity>
+  <View style={styles.topBtnsRight}>
+    <TouchableOpacity onPress={() => navigation.navigate('EditarPerfil')}>
+      <Text style={styles.btnEditarTexto}>✏️ Editar</Text>
+    </TouchableOpacity>
+    <TouchableOpacity onPress={cerrarSesion}>
+      <Text style={styles.btnSalirTopTexto}>Cerrar sesión</Text>
+    </TouchableOpacity>
+  </View>
 </View>
 
       <View style={styles.header}>
@@ -374,5 +379,12 @@ rankAmistoso: {
   fontSize: 12,
   color: '#999',
   marginTop: 4,
+},
+homeBtn: {
+  fontSize: 20,
+},
+topBtnsRight: {
+  flexDirection: 'row',
+  gap: 16,
 },
 });

@@ -41,7 +41,7 @@ export default function Registro({ navigation }) {
         creadoEn: new Date(),
       });
       Alert.alert('¡Bienvenid@!', `Hola ${nombre}, tu cuenta fue creada exitosamente.`, [
-  { text: 'Entrar', onPress: () => navigation.navigate('Partidos') }
+  { text: 'Entrar', onPress: () => navigation.navigate('Home') }
 ]);
     } catch (error) {
       let mensaje = 'Ocurrió un error al crear la cuenta.';

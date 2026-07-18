@@ -17,7 +17,7 @@ export default function Login({ navigation }) {
     try {
       setCargando(true);
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.navigate('Partidos');
+      navigation.navigate('Home');
     } catch (error) {
       Alert.alert('Error', 'Email o contraseña incorrectos');
     } finally {
