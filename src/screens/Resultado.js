@@ -147,6 +147,13 @@ if (partido.tipo === 'Amistoso' || partidoInicial.tipo === 'Amistoso') {
         return;
       }
       const categorias = ['Élite', '1ª División', '2ª División', '3ª División', '4ª División', '5ª División', '6ª División', '7ª División', '8ª División'];
+
+      const puntosMinimos = {
+        'Élite': 3000, '1ª División': 2500, '2ª División': 2000,
+        '3ª División': 1700, '4ª División': 1400, '5ª División': 1100,
+        '6ª División': 800, '7ª División': 500, '8ª División': 0,
+      };
+
       const snapGanador = await getDoc(doc(db, 'usuarios', partido.ganador));
       const perdedorId = partido.ganador === partido.convocante ? partido.rival : partido.convocante;
       const snapPerdedor = await getDoc(doc(db, 'usuarios', perdedorId));
@@ -158,22 +165,67 @@ if (partido.tipo === 'Amistoso' || partidoInicial.tipo === 'Amistoso') {
       const indexPerdedor = categorias.indexOf(datosPerdedor.categoria);
       const diferencia = indexPerdedor - indexGanador;
 
-      let puntosGanador = 35;
-      let puntosPerdedor = 12;
+      let puntosGanador = 30;
+      let puntosPerdedor = -10;
 
       if (diferencia > 0) {
-        puntosGanador += diferencia * 10;
+        puntosGanador = 50;
+        puntosPerdedor = -5;
       } else if (diferencia < 0) {
-        puntosGanador = Math.max(10, puntosGanador + diferencia * 10);
-        puntosPerdedor = Math.max(5, puntosPerdedor + diferencia * 5);
+        puntosGanador = 15;
+        puntosPerdedor = -20;
       }
 
+      const puntosNuevosGanador = (datosGanador.puntos || 1000) + puntosGanador;
+      const puntosNuevosPerdedor = Math.max(0, (datosPerdedor.puntos || 1000) + puntosPerdedor);
+
+      const categoriaCalculada = (puntos) => {
+        if (puntos >= 3000) return 'Élite';
+        if (puntos >= 2500) return '1ª División';
+        if (puntos >= 2000) return '2ª División';
+        if (puntos >= 1700) return '3ª División';
+        if (puntos >= 1400) return '4ª División';
+        if (puntos >= 1100) return '5ª División';
+        if (puntos >= 800) return '6ª División';
+        if (puntos >= 500) return '7ª División';
+        return '8ª División';
+      };
+
+      const nuevaCatGanador = categoriaCalculada(puntosNuevosGanador);
+      const nuevaCatPerdedor = categoriaCalculada(puntosNuevosPerdedor);
+
+      const ascendioGanador = nuevaCatGanador !== datosGanador.categoria;
+      const cambioPerdedor = nuevaCatPerdedor !== datosPerdedor.categoria;
+
       await updateDoc(doc(db, 'usuarios', partido.ganador), {
-        puntos: (datosGanador.puntos || 1500) + puntosGanador,
+        puntos: puntosNuevosGanador,
+        categoria: nuevaCatGanador,
+        victorias: (datosGanador.victorias || 0) + 1,
+        partidosJugados: (datosGanador.partidosJugados || 0) + 1,
       });
+
       await updateDoc(doc(db, 'usuarios', perdedorId), {
-        puntos: (datosPerdedor.puntos || 1500) + puntosPerdedor,
+        puntos: puntosNuevosPerdedor,
+        categoria: nuevaCatPerdedor,
+        derrotas: (datosPerdedor.derrotas || 0) + 1,
+        partidosJugados: (datosPerdedor.partidosJugados || 0) + 1,
       });
+
+      await updateDoc(doc(db, 'partidos', partido.id), {
+        resultado_confirmado: true,
+        resultado_pendiente: false,
+        puntosGanados: puntosGanador,
+        puntosPerdidos: Math.abs(puntosPerdedor),
+      });
+
+      let mensajeExtra = '';
+      if (ascendioGanador) mensajeExtra += `\n🎉 ¡Ascenso! El ganador sube a ${nuevaCatGanador}.`;
+      if (cambioPerdedor && nuevaCatPerdedor !== datosPerdedor.categoria) {
+        mensajeExtra += `\n📉 El perdedor baja a ${nuevaCatPerdedor}.`;
+      }
+
+      Alert.alert('¡Confirmado!', `+${puntosGanador} pts al ganador · ${puntosPerdedor} pts al perdedor.${mensajeExtra}`);
+      navigation.navigate('Partidos');
       await updateDoc(doc(db, 'partidos', partido.id), {
         resultado_confirmado: true,
         resultado_pendiente: false,
